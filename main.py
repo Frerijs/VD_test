@@ -101,8 +101,10 @@ def process_csv_data(df_csv):
             else:
                 return ""
             
-            # Noņemam LV-XXXX formātu no adreses
-            address_part = re.sub(r',?\s*LV-\d{4}', '', address_part)
+            # Noņemam tikai LV-XXXX formātu, saglabājot komatu pirms tā
+            address_part = re.sub(r'LV-\d{4}', '', address_part)
+            # Notīram atstarpes beigās, bet saglabājam komatu
+            address_part = re.sub(r'\s+,\s*$', ',', address_part)
             return address_part.strip()
 
         # Piešķiram kolonnu saturu
