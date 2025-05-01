@@ -77,6 +77,31 @@ def extract_valsts_kods_from_pasta_indekss(pasta_indekss):
         return match.group(1)
     return ""
 
+def extract_second_part(address):
+    if not isinstance(address, str):
+        return ""
+    parts = address.split(',')
+    # Izvelkam adreses daļu no pirmā līdz trešajam komatam (ja ir pietiekami daudz daļu)
+    if len(parts) >= 4:
+        # Ņemam tikai daļas no 1. līdz 3. indeksam (2.-4. daļa)
+        result = ', '.join(parts[1:4])
+    elif len(parts) >= 2:
+        # Ja nav pietiekami daļu, ņemam visas atlikušās daļas pēc pirmās
+        result = ', '.join(parts[1:])
+    else:
+        return ""
+    
+    # Notīrām pasta indeksu un liekas atstarpes
+    result = result.strip()
+    # Noņemam pasta indeksu formātā "LV-XXXX", saglabājot komatu pirms tā
+    result = re.sub(r'\s*LV-\d{4}(?=\s*$|\s*,)', '', result)
+    # Notīrām liekas atstarpes ap komatiem, bet saglabājam komatus
+    result = re.sub(r'\s*,\s*', ', ', result)
+    # Noņemam lieko komatu beigās, ja tāds ir
+    result = result.strip().rstrip(',')
+    
+    return result
+
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
     if "Adrese" in df_csv.columns:
@@ -88,24 +113,6 @@ def process_csv_data(df_csv):
             if parts:
                 return parts[0].strip()
             return ""
-
-        # Funkcija, kas izvelk adreses daļu no pirmā līdz trešajam komatam
-        def extract_second_part(address):
-            if not isinstance(address, str):
-                return ""
-            parts = address.split(',')
-            if len(parts) >= 4:
-                address_part = ', '.join(parts[1:4]).strip()
-            elif len(parts) >= 2:
-                address_part = ', '.join(parts[1:]).strip()
-            else:
-                return ""
-            
-            # Noņemam tikai LV-XXXX formātu, saglabājot komatu pirms tā
-            address_part = re.sub(r'LV-\d{4}', '', address_part)
-            # Notīram atstarpes beigās, bet saglabājam komatu
-            address_part = re.sub(r'\s+,\s*$', ',', address_part)
-            return address_part.strip()
 
         # Piešķiram kolonnu saturu
         df_excel["Adrese 1"] = df_csv["Adrese"].apply(extract_first_part)
