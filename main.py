@@ -108,12 +108,20 @@ def extract_second_part(address):
 def clean_company_name(text):
     if not isinstance(text, str):
         return text
+    
     # Nomainām vairākas rindiņas ar vienu atstarpi
     text = re.sub(r'\s+', ' ', text)
-    # Notīrām liekas atstarpes ap pēdiņām
-    text = re.sub(r'\s*"\s*', '"', text)
+    
+    # Labojam atstarpes ap pēdiņām
+    text = re.sub(r'(\S)"', r'\1 "', text)  # Pievieno atstarpi pirms pēdiņām
+    text = re.sub(r'"(\S)', r'" \1', text)  # Pievieno atstarpi pēc pēdiņām
+    
     # Labojam nepareizi savienotus vārdus (piemēram, "ValstsValsts" -> "Valsts Valsts")
     text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
+    
+    # Noņemam liekās atstarpes, bet saglabājam vienu atstarpi ap pēdiņām
+    text = ' '.join(text.split())
+    
     return text.strip()
 
 def process_csv_data(df_csv):
