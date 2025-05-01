@@ -95,10 +95,15 @@ def process_csv_data(df_csv):
                 return ""
             parts = address.split(',')
             if len(parts) >= 4:
-                return ', '.join(parts[1:4]).strip()
+                address_part = ', '.join(parts[1:4]).strip()
             elif len(parts) >= 2:
-                return ', '.join(parts[1:]).strip()
-            return ""
+                address_part = ', '.join(parts[1:]).strip()
+            else:
+                return ""
+            
+            # Noņemam LV-XXXX formātu no adreses
+            address_part = re.sub(r',?\s*LV-\d{4}', '', address_part)
+            return address_part.strip()
 
         # Piešķiram kolonnu saturu
         df_excel["Adrese 1"] = df_csv["Adrese"].apply(extract_first_part)
