@@ -35,7 +35,7 @@ def create_excel_template():
     ]
     return pd.DataFrame(columns=columns)
 
-def clean_address_for_Adrese1(address):
+def clean_address_for_Adrese2(address):
     if not isinstance(address, str):
         return ""
     idx = address.find(',')
