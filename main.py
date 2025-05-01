@@ -81,26 +81,29 @@ def extract_second_part(address):
     if not isinstance(address, str):
         return ""
     parts = address.split(',')
-    # Izvelkam adreses daļu no pirmā līdz trešajam komatam (ja ir pietiekami daudz daļu)
+    
+    # Izvelkam adreses daļu no pirmā līdz trešajam komatam
     if len(parts) >= 4:
-        # Ņemam tikai daļas no 1. līdz 3. indeksam (2.-4. daļa)
         result = ', '.join(parts[1:4])
     elif len(parts) >= 2:
-        # Ja nav pietiekami daļu, ņemam visas atlikušās daļas pēc pirmās
         result = ', '.join(parts[1:])
     else:
         return ""
     
     # Notīrām pasta indeksu un liekas atstarpes
     result = result.strip()
-    # Noņemam pasta indeksu formātā "LV-XXXX", saglabājot komatu pirms tā
-    result = re.sub(r'\s*LV-\d{4}(?=\s*$|\s*,)', '', result)
+    
+    # Noņemam pasta indeksu formātā "LV-XXXX" vai "LV- XXXX", saglabājot komatu pirms tā
+    result = re.sub(r',?\s*LV-\s*\d{4}(?=\s*$|\s*,)', '', result)
+    
     # Notīrām liekas atstarpes ap komatiem, bet saglabājam komatus
     result = re.sub(r'\s*,\s*', ', ', result)
-    # Noņemam lieko komatu beigās, ja tāds ir
-    result = result.strip().rstrip(',')
     
-    return result
+    # Pārliecināmies, ka beigās ir komats
+    if not result.endswith(','):
+        result += ','
+    
+    return result.strip()
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
