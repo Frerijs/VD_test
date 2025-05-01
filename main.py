@@ -109,31 +109,36 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
 
-    # Notīrām daudzas pēdiņas, atstājot tikai vienu pāri
+    # Notīrām sākuma un beigu atstarpes
     text = text.strip()
     
-    # Atrodam "SIA" vai citu prefiksu
+    # Atrodam "SIA" prefiksu
     prefix = ""
     if "SIA" in text:
-        parts = text.split("SIA")
+        parts = text.split("SIA", 1)  # Split only on first occurrence
         if len(parts) > 1:
             text = parts[1].strip()
             prefix = "SIA"
     
-    # Notīrām visas pēdiņas
-    text = text.replace('"', '')
+    # Saglabājam tekstu starp pēdiņām
+    quote_start = text.find('"')
+    quote_end = text.rfind('"')
     
-    # Labojam nepareizi savienotus vārdus
-    text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
+    if quote_start != -1 and quote_end != -1 and quote_start != quote_end:
+        # Izvelkam tekstu starp pēdiņām
+        inside_quotes = text[quote_start+1:quote_end]
+    else:
+        # Ja nav pēdiņu, izmantojam visu tekstu
+        inside_quotes = text.replace('"', '')
     
-    # Notīrām liekās atstarpes
-    text = ' '.join(text.split())
+    # Notīrām liekās atstarpes, bet saglabājam esošās starp vārdiem
+    inside_quotes = ' '.join(inside_quotes.split())
     
     # Veidojam gala rezultātu
     if prefix:
-        result = f'{prefix} "{text}"'
+        result = f'{prefix} "{inside_quotes}"'
     else:
-        result = f'"{text}"'
+        result = f'"{inside_quotes}"'
     
     return result.strip()
 
@@ -880,3 +885,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+`
