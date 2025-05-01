@@ -583,9 +583,9 @@ def process_pdf_app():
                                     kadastra_count_per_page[page_num] = kadastra_count_per_page.get(page_num, 0) + 1
                                     if page_num == 1 and not kadastra_page1:
                                         kadastra_page1 = kadastra_numurs
-                                if "Dati par pierobežniekiem" in line:
+                               if "Dati par pierobežniekiem" in line or "Dati par zemes vienībām" in line:
                                     start_processing = True
-                                    st.sidebar.markdown(f"## Sāk apstrādi 'Dati par pierobežniekiem' lapā {page_num}")
+                                    st.sidebar.markdown(f"## Sāk apstrādi '{line}' lapā {page_num}")
                             continue
                         if element['type'] == 'text':
                             line = element['data']
