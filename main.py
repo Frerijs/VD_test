@@ -94,9 +94,12 @@ def process_csv_data(df_csv):
         sabiedriba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Sabiedrība ar", na=False, case=False)
         valsts_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Valsts", na=False, case=False)
         pasvaldiba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Pašvaldība", na=False, case=False)
+        as_mask = df_csv["VardsUzvārdsNosaukums"].str.contains(r'\bAS\b', na=False, case=False)  # \b nodrošina, ka "AS" ir atsevišķs vārds
+        akciju_sab_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Akciju sabiedrība", na=False, case=False)
         
         # Apvienojam visas maskas vienā, lai identificētu uzņēmumus
-        company_mask = sia_mask | sabiedriba_mask | valsts_mask | pasvaldiba_mask
+        company_mask = (sia_mask | sabiedriba_mask | valsts_mask | pasvaldiba_mask | 
+                       as_mask | akciju_sab_mask)
         
         # Kopējam vērtības "Vārds uzvārds" kolonnā tikai tām rindām, kur nav uzņēmums
         df_excel.loc[~company_mask, "Vārds uzvārds"] = df_csv.loc[~company_mask, "VardsUzvārdsNosaukums"]
