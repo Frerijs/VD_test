@@ -108,24 +108,8 @@ def extract_second_part(address):
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
     if "Adrese" in df_csv.columns:
-        # Funkcija, kas izvelk adreses daļu līdz pirmajam komatam
-        def extract_first_part(address):
-            if not isinstance(address, str):
-                return ""
-            parts = address.split(',')
-            if parts:
-                result = parts[0].strip()
-                # Nodrošina, ka pirms vārda "iela" vienmēr ir atstarpe
-                result = re.sub(r'(?i)(?<!\s)(iela)', r' iela', result)
-                # Nodrošinām, ka pirms un pēc "-" vienmēr ir viena atstarpe
-                result = re.sub(r'\s*-\s*', ' - ', result)
-                # Pēc tam pārvēršam gadījumus, kad burts "k" (neatkarīgi no lieluma) ir tieši pirms "-"
-                result = re.sub(r'(?i)(k)\s*-\s*', r'\1-', result)
-                return result
-            return ""
-
-        # Piešķiram kolonnu saturu
-        df_excel["Adrese 1"] = df_csv["Adrese"].apply(extract_first_part)
+        # Izmantojam clean_address_for_Adrese2 funkciju priekš Adrese 1
+        df_excel["Adrese 1"] = df_csv["Adrese"].apply(clean_address_for_Adrese2)
         df_excel["Adrese 2"] = df_csv["Adrese"].apply(extract_second_part)
         
         # Apstrādājam pārējos datus
@@ -136,7 +120,6 @@ def process_csv_data(df_csv):
         df_excel["Adrese"] = df_excel["Adrese 1"].fillna('') + ', ' + df_excel["Adrese 2"].fillna('')
         df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
 
-    # Pārbaudām un apstrādājam VardsUzvārdsNosaukums kolonnu
     if "VardsUzvārdsNosaukums" in df_csv.columns:
         # Izveidojam masku katram uzņēmuma veidam
         sia_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("SIA", na=False, case=False)
