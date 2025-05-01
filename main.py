@@ -81,23 +81,29 @@ def process_csv_data(df_csv):
     df_excel = create_excel_template()
     if "Adrese" in df_csv.columns:
         df_excel["Pasta indekss"] = df_csv["Adrese"].apply(extract_pasta_indekss)
-        # No Pasta indeksa izvelkam Valsts kodu (XX)
         df_excel["Valsts kods (XX)"] = df_excel["Pasta indekss"].apply(extract_valsts_kods_from_pasta_indekss)
-        # Adrese 1 var atstāt tukšu vai pielāgot
         df_excel["Adrese 1"] = df_csv["Adrese"].str.extract(r'([A-Za-zĀ-Žā-ž\s\.]+(?:nov\.|pag\.|pils\.)?)\s*,?\s*LV')[0].str.strip()
-        # Adrese 2: līdz pirmajam komatam no sākuma
         df_excel["Adrese 2"] = df_csv["Adrese"].apply(clean_address_for_Adrese2)
-        # Pievienojam pilno Adrese lauku, apvienojot Adrese 1 un Adrese 2
         df_excel["Adrese"] = df_excel["Adrese 1"].fillna('') + ', ' + df_excel["Adrese 2"].fillna('')
         df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
+
+    # Pirmais uzstādām noklusējuma vērtību Uzņēmums kolonnai
     df_excel["Uzņēmums"] = "SIA METRUM"
-    df_excel["Grupas"] = "Klienti 1"
-    # Aizpildām papildu kolonnas ar fiksētām vērtībām
-    df_excel["Sūtījuma klase"] = "A"
-    df_excel["Sūtījuma tips"] = "Vēstuļu korespondence (dokumenti)"
-    df_excel["Sūtījuma veids"] = "Vienkārša"
+    
+    # Pārbaudām un apstrādājam VardsUzvārdsNosaukums kolonnu
     if "VardsUzvārdsNosaukums" in df_csv.columns:
-        df_excel["Vārds uzvārds"] = df_csv["VardsUzvārdsNosaukums"]
+        # Izveidojam masku, lai identificētu rindas ar "SIA"
+        sia_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("SIA", na=False, case=False)
+        
+        # Kopējam vērtības "Vārds uzvārds" kolonnā tikai tām rindām, kur nav "SIA"
+        df_excel.loc[~sia_mask, "Vārds uzvārds"] = df_csv.loc[~sia_mask, "VardsUzvārdsNosaukums"]
+        
+        # Kopējam vērtības "Uzņēmums" kolonnā tām rindām, kur ir "SIA"
+        df_excel.loc[sia_mask, "Uzņēmums"] = df_csv.loc[sia_mask, "VardsUzvārdsNosaukums"]
+        
+        # Noņemam noklusējuma vērtību "SIA METRUM" rindām, kur ir "SIA"
+        df_excel.loc[sia_mask, "Uzņēmums"] = df_excel.loc[sia_mask, "Uzņēmums"].str.strip()
+    
     return df_excel
 
 def to_excel(df):
