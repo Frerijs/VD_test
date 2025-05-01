@@ -80,21 +80,18 @@ def extract_valsts_kods_from_pasta_indekss(pasta_indekss):
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
     if "Adrese" in df_csv.columns:
-        # Vispirms iegūstam abas adreses kolonnas
+        # Vispirms iegūstam abas adreses kolonnas, bet vēl nemainām tās vietām
         df_excel["Adrese 1"] = df_csv["Adrese"].str.extract(r'([A-Za-zĀ-Žā-ž\s\.]+(?:nov\.|pag\.|pils\.)?)\s*,?\s*LV')[0].str.strip()
         df_excel["Adrese 2"] = df_csv["Adrese"].apply(clean_address_for_Adrese2)
         
-        # Saglabājam pagaidu kolonnas
-        temp_adrese1 = df_excel["Adrese 1"].copy()
-        temp_adrese2 = df_excel["Adrese 2"].copy()
-        
-        # Samainām vietām kolonnu saturu
-        df_excel["Adrese 1"] = temp_adrese2
-        df_excel["Adrese 2"] = temp_adrese1
-        
-        # Turpinām ar pārējo kodu
+        # Vispirms apstrādājam pārējos datus
         df_excel["Pasta indekss"] = df_csv["Adrese"].apply(extract_pasta_indekss)
         df_excel["Valsts kods (XX)"] = df_excel["Pasta indekss"].apply(extract_valsts_kods_from_pasta_indekss)
+        
+        # Tikai pēc tam samainām kolonnu saturu vietām
+        df_excel[["Adrese 1", "Adrese 2"]] = df_excel[["Adrese 2", "Adrese 1"]]
+        
+        # Veidojam pilno adresi no samainītajām kolonnām
         df_excel["Adrese"] = df_excel["Adrese 1"].fillna('') + ', ' + df_excel["Adrese 2"].fillna('')
         df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
 
