@@ -109,33 +109,53 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
     
-    # Nomainām vairākas rindiņas ar vienu atstarpi
-    text = re.sub(r'\s+', ' ', text)
+    # Sadalām tekstu daļās, saglabājot pēdiņās esošo tekstu
+    parts = []
+    current_part = ""
+    in_quotes = False
     
-    # Labojam nepareizi savienotus vārdus (piemēram, "ValstsValsts" -> "Valsts Valsts")
-    text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
+    for char in text:
+        if char == '"':
+            in_quotes = not in_quotes
+            current_part += char
+        else:
+            # Ja esam pēdiņās, saglabājam visas atstarpes
+            if in_quotes:
+                current_part += char
+            else:
+                # Ja neesam pēdiņās, nomainām vairākas atstarpes ar vienu
+                if char.isspace():
+                    if current_part and not current_part[-1].isspace():
+                        current_part += ' '
+                else:
+                    current_part += char
     
-    # Notīrām liekas atstarpes ap pēdiņām
-    text = re.sub(r'\s*"\s*', '"', text)
+    text = current_part.strip()
     
-    # Noņemam liekās atstarpes, bet saglabājam vienu atstarpi starp vārdiem
-    text = ' '.join(text.split())
+    # Labojam nepareizi savienotus vārdus ārpus pēdiņām
+    result = ""
+    in_quotes = False
+    last_pos = 0
     
-    # Pārbaudām, vai ir pāra pēdiņu skaits
-    quote_count = text.count('"')
-    if quote_count == 2:
-        # Atrodam pirmo un pēdējo pēdiņu indeksu
-        first_quote = text.find('"')
-        last_quote = text.rfind('"')
-        
-        # Sadalām tekstu trīs daļās: pirms pēdiņām, starp pēdiņām un pēc pēdiņām
-        before_quotes = text[:first_quote].strip()
-        between_quotes = text[first_quote+1:last_quote].strip()
-        
-        # Savienojam atpakaļ ar pareizu formatējumu
-        text = f"{before_quotes} \"{between_quotes}\""
+    for i in range(len(text)):
+        if text[i] == '"':
+            in_quotes = not in_quotes
+            if in_quotes:
+                # Apstrādājam tekstu pirms pēdiņām
+                part = text[last_pos:i]
+                result += re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', part)
+                result += '"'
+            else:
+                # Pievienojam pēdiņās esošo tekstu bez izmaiņām
+                result += text[last_pos+1:i+1]
+                last_pos = i + 1
     
-    return text.strip()
+    # Apstrādājam atlikušo tekstu
+    if last_pos < len(text):
+        part = text[last_pos:]
+        result += re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', part)
+    
+    return result.strip()
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
