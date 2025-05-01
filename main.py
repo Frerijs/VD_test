@@ -89,14 +89,20 @@ def process_csv_data(df_csv):
 
     # Pārbaudām un apstrādājam VardsUzvārdsNosaukums kolonnu
     if "VardsUzvārdsNosaukums" in df_csv.columns:
-        # Izveidojam masku, lai identificētu rindas ar "SIA"
+        # Izveidojam masku katram uzņēmuma veidam
         sia_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("SIA", na=False, case=False)
+        sabiedriba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Sabiedrība ar", na=False, case=False)
+        valsts_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Valsts", na=False, case=False)
+        pasvaldiba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Pašvaldība", na=False, case=False)
         
-        # Kopējam vērtības "Vārds uzvārds" kolonnā tikai tām rindām, kur nav "SIA"
-        df_excel.loc[~sia_mask, "Vārds uzvārds"] = df_csv.loc[~sia_mask, "VardsUzvārdsNosaukums"]
+        # Apvienojam visas maskas vienā, lai identificētu uzņēmumus
+        company_mask = sia_mask | sabiedriba_mask | valsts_mask | pasvaldiba_mask
         
-        # Kopējam vērtības "Uzņēmums" kolonnā tām rindām, kur ir "SIA"
-        df_excel.loc[sia_mask, "Uzņēmums"] = df_csv.loc[sia_mask, "VardsUzvārdsNosaukums"]
+        # Kopējam vērtības "Vārds uzvārds" kolonnā tikai tām rindām, kur nav uzņēmums
+        df_excel.loc[~company_mask, "Vārds uzvārds"] = df_csv.loc[~company_mask, "VardsUzvārdsNosaukums"]
+        
+        # Kopējam vērtības "Uzņēmums" kolonnā tām rindām, kur ir uzņēmums
+        df_excel.loc[company_mask, "Uzņēmums"] = df_csv.loc[company_mask, "VardsUzvārdsNosaukums"]
     
     return df_excel
 
