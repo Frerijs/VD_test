@@ -95,9 +95,9 @@ def process_csv_data(df_csv):
         adrese1 = df_csv["Adrese"].str.extract(r'([A-Za-zĀ-Žā-ž\s\.]+(?:nov\.|pag\.|pils\.)?)\s*,?\s*LV')[0].str.strip()
         adrese2 = df_csv["Adrese"].apply(extract_address_part)
         
-        # Saglabājam adreses daļas
-        df_excel["Adrese 2"] = adrese1  # Mainām vietām - Adrese 1 saturs nonāk Adrese 2
-        df_excel["Adrese 1"] = adrese2  # Mainām vietām - Adrese 2 saturs nonāk Adrese 1
+        # Saglabājam adreses daļas pretējās kolonnās
+        df_excel["Adrese 1"] = adrese1  # Adrese 1 saņem sākotnējo adrese1 saturu
+        df_excel["Adrese 2"] = adrese2  # Adrese 2 saņem sākotnējo adrese2 saturu
         
         # Apstrādājam pārējos datus
         df_excel["Pasta indekss"] = df_csv["Adrese"].apply(extract_pasta_indekss)
