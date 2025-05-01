@@ -20,7 +20,7 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 import base64
 
-#  funkcijas sākums
+# Jaunas funkcijas sākums
 def create_excel_template():
     columns = [
         "Vārds uzvārds", "Uzņēmums", "Valsts kods (XX)", "Adrese 1",
