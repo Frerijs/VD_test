@@ -109,42 +109,33 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
 
-    # Notīrām liekās pēdiņas un atstarpes
+    # Notīrām daudzas pēdiņas, atstājot tikai vienu pāri
     text = text.strip()
     
-    # Atrodam pirmo un pēdējo derīgo pēdiņu pāri
-    first_quote = text.find('"')
-    last_quote = text.rfind('"')
+    # Atrodam "SIA" vai citu prefiksu
+    prefix = ""
+    if "SIA" in text:
+        parts = text.split("SIA")
+        if len(parts) > 1:
+            text = parts[1].strip()
+            prefix = "SIA"
     
-    if first_quote != -1 and last_quote != -1 and first_quote != last_quote:
-        # Sadalām tekstu daļās
-        before_quotes = text[:first_quote].strip()
-        between_quotes = text[first_quote+1:last_quote].strip()
-        after_quotes = text[last_quote+1:].strip()
-        
-        # Labojam nepareizi savienotus vārdus
-        if before_quotes:
-            before_quotes = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', before_quotes)
-        if between_quotes:
-            between_quotes = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', between_quotes)
-        
-        # Apvienojam daļas atpakaļ
-        result = before_quotes
-        if before_quotes and not before_quotes.endswith(' '):
-            result += ' '
-        result += f'"{between_quotes}"'
-        if after_quotes:
-            if not result.endswith(' '):
-                result += ' '
-            result += after_quotes
-    else:
-        # Ja nav pēdiņu vai ir tikai viena pēdiņa, apstrādājam visu tekstu
-        result = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
+    # Notīrām visas pēdiņas
+    text = text.replace('"', '')
+    
+    # Labojam nepareizi savienotus vārdus
+    text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
     
     # Notīrām liekās atstarpes
-    result = ' '.join(result.split())
+    text = ' '.join(text.split())
     
-    return result
+    # Veidojam gala rezultātu
+    if prefix:
+        result = f'{prefix} "{text}"'
+    else:
+        result = f'"{text}"'
+    
+    return result.strip()
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
