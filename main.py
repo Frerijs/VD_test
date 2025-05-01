@@ -114,7 +114,14 @@ def process_csv_data(df_csv):
                 return ""
             parts = address.split(',')
             if parts:
-                return parts[0].strip()
+                result = parts[0].strip()
+                # Nodrošina, ka pirms vārda "iela" vienmēr ir atstarpe
+                result = re.sub(r'(?i)(?<!\s)(iela)', r' iela', result)
+                # Nodrošinām, ka pirms un pēc "-" vienmēr ir viena atstarpe
+                result = re.sub(r'\s*-\s*', ' - ', result)
+                # Pēc tam pārvēršam gadījumus, kad burts "k" (neatkarīgi no lieluma) ir tieši pirms "-"
+                result = re.sub(r'(?i)(k)\s*-\s*', r'\1-', result)
+                return result
             return ""
 
         # Piešķiram kolonnu saturu
