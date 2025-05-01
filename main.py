@@ -263,7 +263,8 @@ def format_date_latvian(date_obj):
     }
     if isinstance(date_obj, (datetime, pd.Timestamp)):
         date_obj = date_obj.date()
-    return f"{date_obj.year}. gada {date_obj.day}. {month_names.get(date_obj.month, '')}"
+    # Atgriežam datumu kā teksta virkni ar konkrētu formatējumu
+    return str(f"{date_obj.year}. gada {date_obj.day}. {month_names.get(date_obj.month, '')}")
 
 # Atjauninātā restore_address_format() funkcija
 def restore_address_format(address):
@@ -685,7 +686,7 @@ def process_pdf_app():
             grouped_df['Vieta'] = place
             grouped_df['Pagasts_un_Novads'] = municipality
             grouped_df['Tikšanās_vieta_un_laiks'] = meeting_place
-            grouped_df['Tikšanās_datums'] = format_date_latvian(meeting_date)
+            grouped_df['Tikšanās_datums'] = str(format_date_latvian(meeting_date))
             grouped_df['Mērnieks_Vārds_Uzvārds'] = selected_surveyor_name
             grouped_df['Mērnieks_Telefons'] = selected_surveyor_phone
             grouped_df['Sagatavotājs_Vārds_Uzvārds_Telefons'] = selected_prepared_by_name_telefons
