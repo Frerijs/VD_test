@@ -91,11 +91,15 @@ def process_csv_data(df_csv):
                 return ', '.join(parts[1:]).strip()
             return ""
 
-        # Vispirms iegūstam abas adreses kolonnas
-        df_excel["Adrese 1"] = df_csv["Adrese"].str.extract(r'([A-Za-zĀ-Žā-ž\s\.]+(?:nov\.|pag\.|pils\.)?)\s*,?\s*LV')[0].str.strip()
-        df_excel["Adrese 2"] = df_csv["Adrese"].apply(extract_address_part)
+        # Vispirms iegūstam adreses kolonnas
+        adrese1 = df_csv["Adrese"].str.extract(r'([A-Za-zĀ-Žā-ž\s\.]+(?:nov\.|pag\.|pils\.)?)\s*,?\s*LV')[0].str.strip()
+        adrese2 = df_csv["Adrese"].apply(extract_address_part)
         
-        # Vispirms apstrādājam pārējos datus
+        # Saglabājam adreses daļas
+        df_excel["Adrese 2"] = adrese1  # Mainām vietām - Adrese 1 saturs nonāk Adrese 2
+        df_excel["Adrese 1"] = adrese2  # Mainām vietām - Adrese 2 saturs nonāk Adrese 1
+        
+        # Apstrādājam pārējos datus
         df_excel["Pasta indekss"] = df_csv["Adrese"].apply(extract_pasta_indekss)
         df_excel["Valsts kods (XX)"] = df_excel["Pasta indekss"].apply(extract_valsts_kods_from_pasta_indekss)
         
