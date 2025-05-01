@@ -105,6 +105,17 @@ def extract_second_part(address):
     
     return result.strip()
 
+def clean_company_name(text):
+    if not isinstance(text, str):
+        return text
+    # Nomainām vairākas rindiņas ar vienu atstarpi
+    text = re.sub(r'\s+', ' ', text)
+    # Notīrām liekas atstarpes ap pēdiņām
+    text = re.sub(r'\s*"\s*', '"', text)
+    # Labojam nepareizi savienotus vārdus (piemēram, "ValstsValsts" -> "Valsts Valsts")
+    text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
+    return text.strip()
+
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
     if "Adrese" in df_csv.columns:
@@ -121,6 +132,9 @@ def process_csv_data(df_csv):
         df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
 
     if "VardsUzvārdsNosaukums" in df_csv.columns:
+        # Vispirms notīrām un formatējam uzņēmumu nosaukumus
+        df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
+        
         # Izveidojam masku katram uzņēmuma veidam
         sia_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("SIA", na=False, case=False)
         sabiedriba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Sabiedrība ar", na=False, case=False)
@@ -663,6 +677,10 @@ def process_pdf_app():
                                 df.dropna(axis=1, how='all', inplace=True)
                                 if df.empty:
                                     continue
+                                # Meklējam tabulā "Vārds uzvārds/\nnosaukums" kolonnu
+                                if "Vārds uzvārds/\nnosaukums" in df.columns:
+                                    # Notīrām un formatējam uzņēmumu nosaukumus
+                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(clean_company_name)
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
                                 if missing_columns:
