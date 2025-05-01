@@ -87,9 +87,6 @@ def process_csv_data(df_csv):
         df_excel["Adrese"] = df_excel["Adrese 1"].fillna('') + ', ' + df_excel["Adrese 2"].fillna('')
         df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
 
-    # Pirmais uzstādām noklusējuma vērtību Uzņēmums kolonnai
-    df_excel["Uzņēmums"] = "SIA METRUM"
-    
     # Pārbaudām un apstrādājam VardsUzvārdsNosaukums kolonnu
     if "VardsUzvārdsNosaukums" in df_csv.columns:
         # Izveidojam masku, lai identificētu rindas ar "SIA"
@@ -100,9 +97,6 @@ def process_csv_data(df_csv):
         
         # Kopējam vērtības "Uzņēmums" kolonnā tām rindām, kur ir "SIA"
         df_excel.loc[sia_mask, "Uzņēmums"] = df_csv.loc[sia_mask, "VardsUzvārdsNosaukums"]
-        
-        # Noņemam noklusējuma vērtību "SIA METRUM" rindām, kur ir "SIA"
-        df_excel.loc[sia_mask, "Uzņēmums"] = df_excel.loc[sia_mask, "Uzņēmums"].str.strip()
     
     return df_excel
 
