@@ -98,11 +98,7 @@ def process_csv_data(df_csv):
         akciju_sab_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Akciju sabiedrība", na=False, case=False)
         ministrija_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("ministrija", na=False, case=False)
         parvalde_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("pārvalde", na=False, case=False)
-        zemnieku_mask = df_csv["VardsUzvārdsNosaukums"].str.contains(
-            r'(?:zemnieku saimniec[īi]ba)|(?:pagasta zemnieku saimniec[īi]ba)|z/s|z\.s\.|z/s\.',
-            na=False, 
-            case=False
-        )
+        zemnieku_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("saimniecība", na=False, case=False)
         
         # Apvienojam visas maskas vienā, lai identificētu uzņēmumus
         company_mask = (sia_mask | sabiedriba_mask | valsts_mask | pasvaldiba_mask | 
