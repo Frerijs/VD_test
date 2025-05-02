@@ -795,7 +795,8 @@ def process_pdf_app():
                 # Ja PDF apstrādē tika atrastas tabulas, izveidojam CSV ar datiem viens pret vienu
                 if all_tables_df:
                     raw_pdf_data = pd.concat(all_tables_df, ignore_index=True)
-                    raw_csv = raw_pdf_data.to_csv(index=False).encode('utf-8')
+                    import csv  # ja nav iepriekš importēts
+                    raw_csv = raw_pdf_data.to_csv(index=False, quoting=csv.QUOTE_ALL).encode('utf-8')
                     st.sidebar.markdown(
                         download_link(raw_csv, "raw_dati_no_pdf.csv", "Lejupielādēt CSV ar datiem no PDF (viens pret vienu)"),
                         unsafe_allow_html=True
