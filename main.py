@@ -19,6 +19,7 @@ import tempfile
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 import base64
+import streamlit.components.v1 as components
 
 # Jaunas funkcijas sākums
 def create_excel_template():
@@ -528,6 +529,51 @@ def clean_property_name(name):
     name = name.strip()
     return name
 
+def create_custom_calendar(key, default_date=None):
+    if default_date is None:
+        default_date = datetime.today()
+    
+    # Izveido HTML un JavaScript kodu priekš flatpickr
+    calendar_html = f"""
+    <input type="text" id="date-picker-{key}" style="display: none;">
+    <div id="selected-date-{key}" style="margin-bottom: 10px;"></div>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/lv.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {{
+            const picker = flatpickr("#date-picker-{key}", {{
+                locale: "lv",
+                dateFormat: "Y-m-d",
+                defaultDate: "{default_date.strftime('%Y-%m-%d')}",
+                firstDayOfWeek: 1,
+                onChange: function(selectedDates, dateStr) {{
+                    document.getElementById("selected-date-{key}").innerText = dateStr;
+                    window.parent.postMessage({{
+                        type: "streamlit:setComponentValue",
+                        key: "{key}",
+                        value: dateStr
+                    }}, "*");
+                }}
+            }});
+            
+            // Automātiski parāda kalendāru
+            picker.open();
+            
+            // Iestatām sākotnējo datumu
+            document.getElementById("selected-date-{key}").innerText = "{default_date.strftime('%Y-%m-%d')}";
+        }});
+    </script>
+    """
+    
+    # Renderē kalendāru
+    components.html(calendar_html, height=350)
+    
+    # Atgriež izvēlēto datumu
+    return default_date
+
 def process_pdf_app():
     st.markdown("<h1 style='text-align: center; color: #AC3356;'>Vēstuļu draugs</h1>", unsafe_allow_html=True)
     # Ielādējam uzņēmumu, vietu, novadu, mērnieku un sagatavotāju sarakstus no datu bāzes
@@ -582,7 +628,7 @@ def process_pdf_app():
         place = st.selectbox("Izvēlieties vēstules sagatavošanas vietu:", options=[""] + place_options, index=0, help="Izvēlieties vietu no saraksta")
         municipality = st.selectbox("Izvēlieties uzmērāmās zemes vienības pagastu un novadu:", options=[""] + municipality_options, index=0, help="Izvēlieties novadu no saraksta")
         meeting_place = st.text_input("Ievadiet tikšanās vietu un laiku:", value="")
-        meeting_date = st.date_input("Ievadiet tikšanās datumu:", datetime.today())
+        meeting_date = create_custom_calendar("meeting_date", datetime.today())
         if surveyor_dict:
             surveyor_options = [""] + list(surveyor_dict.keys())
             selected_surveyor_key = st.selectbox("Izvēlieties mērnieku:", options=surveyor_options, index=0, help="Izvēlieties mērnieku no saraksta")
