@@ -136,6 +136,37 @@ def clean_company_name(text):
         text = f"{before_quotes} \"{between_quotes}\""
     
     return text.strip()
+# Pievienot jaunu funkciju pēc clean_company_name funkcijas
+
+def detect_gender_by_name(full_name):
+    """
+    Nosaka dzimumu pēc vārda, meklējot sieviešu vārdu galotnes
+    Returns: 'F' sievietēm, 'M' vīriešiem
+    """
+    if not isinstance(full_name, str):
+        return 'M'  # Noklusējuma vērtība
+    
+    # Sadalām pilno vārdu, lai pārbaudītu pirmo vārdu
+    first_name = full_name.split()[0] if full_name.split() else ''
+    
+    # Tipiskas sieviešu vārdu galotnes latviešu valodā
+    female_endings = ['a', 'e', 'ija', 'īte']
+    
+    # Izņēmumi - vīriešu vārdi, kas beidzas ar 'a' vai 'e'
+    male_exceptions = ['janka', 'juska', 'male']
+    
+    first_name_lower = first_name.lower()
+    
+    # Pārbaudam izņēmumus
+    if first_name_lower in male_exceptions:
+        return 'M'
+    
+    # Pārbaudam galotnes
+    for ending in female_endings:
+        if first_name_lower.endswith(ending):
+            return 'F'
+    
+    return 'M'
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
@@ -368,9 +399,23 @@ def perform_mail_merge(template_path, records, output_dir):
     except Exception as e:
         show_error("Neizdevās ielādēt šablonu.")
         return output_paths
+        
     for idx, record in enumerate(records):
         try:
             context = record.copy()
+            
+            # Pārbaudām mērnieka dzimumu
+            mernieka_dzimums = detect_gender_by_name(record.get('Mērnieks_Vārds_Uzvārds', ''))
+            
+            # Pievienojam kontekstam papildus mainīgos atkarībā no dzimuma
+            if mernieka_dzimums == 'F':
+                context['mernieks'] = 'mērniece'
+                context['mernieka'] = 'mērnieces'
+                context['merniekam'] = 'mērniecei'
+            else:
+                context['mernieks'] = 'mērnieks'
+                context['mernieka'] = 'mērnieka'
+                context['merniekam'] = 'mērniekam'
             # Apstrādājam 'Adrese' lauku:
             address = record.get('Adrese', '')
             # 1. Noņemam esošos rindu pārrāvumus, aizvietojot tos ar atstarpi
