@@ -693,14 +693,16 @@ def process_pdf_app():
                                     continue
                                 # Meklējam tabulā "Vārds uzvārds/\nnosaukums" kolonnu
                                 if "Vārds uzvārds/\nnosaukums" in df.columns:
-                                    # Saglabājam oriģinālos datus bez tīrīšanas
+                                    # Saglabājam oriģinālos datus, aizstājot tikai \n ar atstarpi
                                     df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(
                                         lambda x: x.replace('\n', ' ').strip() if isinstance(x, str) else x
                                     )
                                     
-                                    # Pārbaudām un saglabājam precīzu SIA formātu
+                                    # Saglabājam atstarpes starp vārdiem uzņēmuma nosaukumā
                                     df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(
-                                        lambda x: re.sub(r'(SIA)\s*"([^"]+)"', r'SIA "\2"', x) if isinstance(x, str) else x
+                                        lambda x: re.sub(r'(SIA)\s*"([^"]+)"', 
+                                                        lambda m: f'SIA "{m.group(2)}"'.replace('  ', ' '), 
+                                                        x, flags=re.IGNORECASE) if isinstance(x, str) else x
                                     )
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
