@@ -43,12 +43,7 @@ def clean_address_for_Adrese2(address):
         result = address[:idx].strip()
     else:
         result = address.strip()
-    # Nodrošina, ka pirms vārda "iela" vienmēr ir atstarpe
-    result = re.sub(r'(?i)(?<!\s)(iela)', r' iela', result)
-    # Nodrošinām, ka pirms un pēc "-" vienmēr ir viena atstarpe
-    result = re.sub(r'\s*-\s*', ' - ', result)
-    # Pēc tam pārvēršam gadījumus, kad burts "k" (neatkarīgi no lieluma) ir tieši pirms "-" – rezultātā tiks saglabāta forma "k-"
-    result = re.sub(r'(?i)(k)\s*-\s*', r'\1-', result)
+    
     
     return result
 
@@ -64,9 +59,7 @@ def extract_pasta_indekss(address):
     else:
         # Atgriežam visu pēc pēdējā komata
         value = address[idx+1:].strip()
-    # Noņem liekās atstarpes ap mīnus zīmi, lai rezultāts būtu, piemēram, "LV-3001"
-    value = re.sub(r'\s*-\s*', '-', value)
-    return value
+   
     
 def extract_valsts_kods_from_pasta_indekss(pasta_indekss):
     if not isinstance(pasta_indekss, str):
@@ -128,18 +121,7 @@ def clean_company_name(text):
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
     if "Adrese" in df_csv.columns:
-        # Izmantojam clean_address_for_Adrese2 funkciju priekš Adrese 1
-        df_excel["Adrese 1"] = df_csv["Adrese"].apply(clean_address_for_Adrese2)
-        df_excel["Adrese 2"] = df_csv["Adrese"].apply(extract_second_part)
         
-        # Apstrādājam pārējos datus
-        df_excel["Pasta indekss"] = df_csv["Adrese"].apply(extract_pasta_indekss)
-        df_excel["Valsts kods (XX)"] = df_excel["Pasta indekss"].apply(extract_valsts_kods_from_pasta_indekss)
-        
-        # Veidojam pilno adresi no kolonnām
-        df_excel["Adrese"] = df_excel["Adrese 1"].fillna('') + ', ' + df_excel["Adrese 2"].fillna('')
-        df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
-
     if "VardsUzvārdsNosaukums" in df_csv.columns:
         # Vispirms notīrām un formatējam uzņēmumu nosaukumus
         df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
