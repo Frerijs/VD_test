@@ -109,34 +109,28 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
     
-    # Nomainām vairākas rindiņas ar vienu atstarpi
+    # Nomainām vairākas atstarpes ar vienu
     text = re.sub(r'\s+', ' ', text)
     
-    # Saglabājam atstarpes pēc SIA, AS utt.
-    text = re.sub(r'(SIA|AS|Z/S|IK)\s+', r'\1 ', text, flags=re.IGNORECASE)
+    # Saglabājam atstarpes starp SIA un pēdiņām
+    text = re.sub(r'(SIA|AS|Z/S|IK)\s*"', r'\1 "', text, flags=re.IGNORECASE)
     
-    # Saglabājam atstarpes ap pēdiņām
-    text = re.sub(r'\s*"\s*', '" ', text)
-    text = re.sub(r'\s+$', '', text)  # Noņemam atstarpes beigās
+    # Saglabājam atstarpes teksta iekšpusē starp pēdiņām
+    if '"' in text:
+        parts = text.split('"')
+        if len(parts) >= 3:
+            prefix = parts[0].strip()  # Teksts pirms pirmajām pēdiņām
+            middle = parts[1].strip()  # Teksts starp pēdiņām
+            # Saglabājam atstarpes nosaukumā starp pēdiņām
+            if prefix:
+                text = f'{prefix} "{middle}"'
+            else:
+                text = f'"{middle}"'
     
-    # Pārbaudām, vai ir pāra pēdiņu skaits
-    quote_count = text.count('"')
-    if quote_count == 2:
-        # Atrodam pirmo un pēdējo pēdiņu indeksu
-        first_quote = text.find('"')
-        last_quote = text.rfind('"')
-        
-        # Sadalām tekstu trīs daļās: pirms pēdiņām, starp pēdiņām un pēc pēdiņām
-        before_quotes = text[:first_quote].strip()
-        between_quotes = text[first_quote+1:last_quote].strip()
-        
-        # Savienojam atpakaļ, saglabājot atstarpes
-        if before_quotes:
-            text = f"{before_quotes} \"{between_quotes}\""
-        else:
-            text = f"\"{between_quotes}\""
+    # Notīrām liekās atstarpes sākumā un beigās
+    text = text.strip()
     
-    return text.strip()
+    return text
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
@@ -154,8 +148,16 @@ def process_csv_data(df_csv):
         df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
 
     if "VardsUzvārdsNosaukums" in df_csv.columns:
-        # Saglabājam oriģinālo formatējumu uzņēmumu nosaukumiem
-        df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(lambda x: x.strip() if isinstance(x, str) else x)
+        # Diagnostikas izdruka
+        for idx, row in df_csv.iterrows():
+            if 'SIA' in str(row['VardsUzvārdsNosaukums']):
+                print(f"Pirms tīrīšanas: {row['VardsUzvārdsNosaukums']}")
+                cleaned = clean_company_name(row['VardsUzvārdsNosaukums'])
+                print(f"Pēc tīrīšanas: {cleaned}")
+                print("-" * 50)
+        
+        # Tālākā apstrāde...
+        df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
         
         # Identificējam uzņēmumus, bet saglabājam oriģinālo formatējumu
         is_company = df_csv["VardsUzvārdsNosaukums"].str.contains(
