@@ -451,9 +451,7 @@ def group_words_into_lines(words, y_tolerance=5):
     return lines
 
 def clean_property_name(name):
-    name = re.sub(r'^\W+', '', name)
-    name = re.sub(r'\W+$', '', name)
-    name = name.strip()
+    
     return name
 
 def process_pdf_app():
