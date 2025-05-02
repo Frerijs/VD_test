@@ -108,39 +108,31 @@ def extract_second_part(address):
 def clean_company_name(text):
     if not isinstance(text, str):
         return text
-
-    # Notīrām sākuma un beigu atstarpes
-    text = text.strip()
     
-    # Atrodam "SIA" prefiksu
-    prefix = ""
+    # Saglabājam oriģinālo tekstu maiņu gadījumam
+    original_text = text
+    
+    # Atrodam "SIA" un tekstu pēc tā
     if "SIA" in text:
-        parts = text.split("SIA", 1)  # Split only on first occurrence
-        if len(parts) > 1:
-            text = parts[1].strip()
-            prefix = "SIA"
+        prefix = "SIA"
+        # Atrodam tekstu pēc "SIA"
+        text_after_sia = text[text.find("SIA") + 3:].strip()
+        
+        # Meklējam tekstu pēdiņās
+        quote_match = re.search(r'"([^"]+)"', text_after_sia)
+        if quote_match:
+            # Ja atrodam tekstu pēdiņās, saglabājam to nemainītu
+            quoted_text = quote_match.group(1)
+            return f'{prefix} "{quoted_text}"'
+        else:
+            # Ja nav pēdiņu, apstrādājam tekstu
+            # Notīrām visas liekās atstarpes
+            text = re.sub(r'\s+', ' ', text_after_sia)
+            # Labojam nepareizi savienotus vārdus
+            text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
+            return f'{prefix} "{text.strip()}"'
     
-    # Saglabājam tekstu starp pēdiņām
-    quote_start = text.find('"')
-    quote_end = text.rfind('"')
-    
-    if quote_start != -1 and quote_end != -1 and quote_start != quote_end:
-        # Izvelkam tekstu starp pēdiņām
-        inside_quotes = text[quote_start+1:quote_end]
-    else:
-        # Ja nav pēdiņu, izmantojam visu tekstu
-        inside_quotes = text.replace('"', '')
-    
-    # Notīrām liekās atstarpes, bet saglabājam esošās starp vārdiem
-    inside_quotes = ' '.join(inside_quotes.split())
-    
-    # Veidojam gala rezultātu
-    if prefix:
-        result = f'{prefix} "{inside_quotes}"'
-    else:
-        result = f'"{inside_quotes}"'
-    
-    return result.strip()
+    return original_text.strip()
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
@@ -705,8 +697,26 @@ def process_pdf_app():
                                     continue
                                 # Meklējam tabulā "Vārds uzvārds/\nnosaukums" kolonnu
                                 if "Vārds uzvārds/\nnosaukums" in df.columns:
-                                    # Notīrām un formatējam uzņēmumu nosaukumus
+                                    # Saglabājam oriģinālos atstarpes pirms tīrīšanas
+                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].astype(str)
+                                    df["Oriģināls"] = df["Vārds uzvārds/\nnosaukums"].copy()
+                                    
+                                    # Tīrām un formatējam uzņēmumu nosaukumus
                                     df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(clean_company_name)
+                                    
+                                    # Atjaunojam oriģinālās atstarpes, kur nepieciešams
+                                    def restore_spaces(row):
+                                        if "SIA" in row["Vārds uzvārds/\nnosaukums"]:
+                                            orig_spaces = re.search(r'"([^"]+)"', row["Oriģināls"])
+                                            if orig_spaces:
+                                                return row["Vārds uzvārds/\nnosaukums"].replace(
+                                                    re.search(r'"([^"]+)"', row["Vārds uzvārds/\nnosaukums"]).group(1),
+                                                    orig_spaces.group(1)
+                                                )
+                                        return row["Vārds uzvārds/\nnosaukums"]
+                                    
+                                    df["Vārds uzvārds/\nnosaukums"] = df.apply(restore_spaces, axis=1)
+                                    df = df.drop("Oriģināls", axis=1)
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
                                 if missing_columns:
