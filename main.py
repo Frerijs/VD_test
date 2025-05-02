@@ -109,29 +109,68 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
     
+    # Saglabāsim sākotnējo tekstu, ja tas satur "SIA" un vismaz vienu atstarpi
+    if "SIA" in text and " " in text:
+        # Pārbaudām, vai uzņēmuma nosaukumā ir vairāki vārdi
+        parts = text.split()
+        if len(parts) > 2:  # "SIA" + vismaz divi vārdi nosaukumā
+            # Labojam tikai nepareizi savienotus vārdus
+            text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
+            # Noņemam liekās atstarpes
+            text = ' '.join(text.split())
+            return text.strip()
+    
     # Nomainām vairākas rindiņas ar vienu atstarpi
     text = re.sub(r'\s+', ' ', text)
     
     # Labojam nepareizi savienotus vārdus (piemēram, "ValstsValsts" -> "Valsts Valsts")
     text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
     
-    # Notīram tikai liekas atstarpes pirms un pēc pēdiņām, bet saglabājam atstarpes starp pēdiņām
-    # Vispirms apstrādājam atstarpes pirms pēdiņām
-    text = re.sub(r'\s+(?=")', ' ', text)
-    # Tad atstarpes pēc pēdiņām
-    text = re.sub(r'(?<=")\s+', ' ', text)
+    # Īpaši apstrādājam SIA nosaukumus
+    if "SIA" in text:
+        # Pārbaudām, vai pēc "SIA" seko liels burts bez atstarpes
+        text = re.sub(r'(SIA)([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
+        
+        # Atjaunojam atstarpi starp vārdiem uzņēmuma nosaukumā
+        # Piemēram: "SIA BĒNESPB" -> "SIA BĒNES PB"
+        if "SIA " in text:
+            after_sia = text.split("SIA ", 1)[1]
+            if re.search(r'[A-ZĀČĒĢĪĶĻŅŠŪŽ]{5,}', after_sia):  # Ja ir garš nosaukums ar lieliem burtiem
+                # Mēģinām atpazīt potenciālos vārdus nosaukumā
+                words = re.findall(r'[A-ZĀČĒĢĪĶĻŅŠŪŽ]+', after_sia)
+                if len(words) >= 2:
+                    # Ievietojam atstarpes starp vārdiem (piem., "BĒNESPB" -> "BĒNES PB")
+                    for word in words:
+                        if len(word) > 4:  # Garāki vārdi var būt savienoti
+                            parts = []
+                            current_part = ""
+                            for i, char in enumerate(word):
+                                if i > 0 and current_part and len(current_part) >= 2:
+                                    # Ja ir konsonants un nākamais burts ir liels burts, tas var būt jaunas vārda sākums
+                                    if char.isupper() and word[i-1].lower() in "bcdfghjklmnpqrstvwxzčģķļņšž":
+                                        parts.append(current_part)
+                                        current_part = char
+                                    else:
+                                        current_part += char
+                                else:
+                                    current_part += char
+                            if current_part:
+                                parts.append(current_part)
+                            
+                            if len(parts) > 1:
+                                # Aizstājam oriģinālo vārdu ar atdalītiem vārdiem
+                                separated_word = " ".join(parts)
+                                text = text.replace(word, separated_word)
     
-    # Noņemam liekās atstarpes, bet saglabājam vienu atstarpi starp vārdiem
+    # Notīrām liekās atstarpes, bet saglabājam atstarpes starp vārdiem
     text = ' '.join(text.split())
     
-    # Pārbaudām, vai ir pāra pēdiņu skaits
+    # Pārbaudām, vai ir pēdiņas un apstrādājam tekstu starp tām
     quote_count = text.count('"')
     if quote_count == 2:
-        # Atrodam pirmo un pēdējo pēdiņu indeksu
         first_quote = text.find('"')
         last_quote = text.rfind('"')
         
-        # Sadalām tekstu trīs daļās: pirms pēdiņām, starp pēdiņām un pēc pēdiņām
         before_quotes = text[:first_quote].strip()
         between_quotes = text[first_quote+1:last_quote].strip()
         
@@ -468,13 +507,49 @@ def group_words_into_lines(words, y_tolerance=5):
         elif abs(word['top'] - current_top) <= y_tolerance:
             current_line.append(word)
         else:
-            line_text = ' '.join([w['text'] for w in sorted(current_line, key=lambda x: x['x0'])])
-            lines.append({'text': line_text, 'top': current_top})
+            # Apstrādājam pašreizējo rindu
+            sorted_words = sorted(current_line, key=lambda x: x['x0'])
+            
+            # Aprēķinām atstarpes starp vārdiem, pamatojoties uz faktiskajām x koordinātēm
+            line_text = ""
+            prev_end = None
+            for w in sorted_words:
+                if prev_end is not None:
+                    # Aprēķinām atstarpes platumu
+                    space_width = w['x0'] - prev_end
+                    # Ja atstarpe ir pietiekami liela, pievienojam vairākas atstarpes
+                    if space_width > 10:  # Pielāgojiet šo vērtību pēc vajadzības
+                        space_count = max(1, int(space_width / 5))  # 5 ir vidējais atstarpes platums
+                        line_text += ' ' * space_count + w['text']
+                    else:
+                        line_text += ' ' + w['text']
+                else:
+                    line_text = w['text']
+                prev_end = w['x0'] + w['width']
+            
+            lines.append({'text': line_text.strip(), 'top': current_top})
             current_line = [word]
             current_top = word['top']
+    
     if current_line:
-        line_text = ' '.join([w['text'] for w in sorted(current_line, key=lambda x: x['x0'])])
-        lines.append({'text': line_text, 'top': current_top})
+        # Apstrādājam pēdējo rindu
+        sorted_words = sorted(current_line, key=lambda x: x['x0'])
+        line_text = ""
+        prev_end = None
+        for w in sorted_words:
+            if prev_end is not None:
+                space_width = w['x0'] - prev_end
+                if space_width > 10:
+                    space_count = max(1, int(space_width / 5))
+                    line_text += ' ' * space_count + w['text']
+                else:
+                    line_text += ' ' + w['text']
+            else:
+                line_text = w['text']
+            prev_end = w['x0'] + w['width']
+        
+        lines.append({'text': line_text.strip(), 'top': current_top})
+    
     return lines
 
 def clean_property_name(name):
@@ -482,6 +557,29 @@ def clean_property_name(name):
     name = re.sub(r'\W+$', '', name)
     name = name.strip()
     return name
+
+# Pievienojam šo funkciju pirms vai pēc process_pdf_app()
+def fix_spacing_in_table_data(df):
+    """
+    Labojam atstarpes tabulas datos, īpaši uzņēmumu nosaukumos
+    """
+    if "Vārds uzvārds/\nnosaukums" in df.columns:
+        df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(lambda x: 
+            # Īpaša apstrāde uzņēmumu nosaukumiem ar SIA
+            re.sub(r'SIA\s*"([^"]+)"', r'SIA "\1"', str(x)) if isinstance(x, str) else x
+        )
+        
+        # Īpaša apstrāde SIA gadījumiem, piemēram "SIABĒNESPB" -> "SIA BĒNES PB" 
+        df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(lambda x:
+            re.sub(r'SIA([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'SIA \1', str(x)) if isinstance(x, str) else x
+        )
+        
+        # Atjaunojam atstarpes starp vārdiem, kas sākas ar lielajiem burtiem
+        df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(lambda x:
+            re.sub(r'([A-ZĀČĒĢĪĶĻŅŠŪŽ]{2,})([A-ZĀČĒĢĪĶĻŅŠŪŽ][a-zāčēģīķļņšūž]+)', r'\1 \2', str(x)) if isinstance(x, str) else x
+        )
+    
+    return df
 
 def process_pdf_app():
     st.markdown("<h1 style='text-align: center; color: #AC3356;'>Vēstuļu draugs</h1>", unsafe_allow_html=True)
@@ -704,7 +802,7 @@ def process_pdf_app():
                                 # Meklējam tabulā "Vārds uzvārds/\nnosaukums" kolonnu
                                 if "Vārds uzvārds/\nnosaukums" in df.columns:
                                     # Notīrām un formatējam uzņēmumu nosaukumus
-                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(clean_company_name)
+                                    df = fix_spacing_in_table_data(df)
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
                                 if missing_columns:
