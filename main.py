@@ -391,7 +391,8 @@ def replace_gender_specific_words(doc, is_female):
         replacements = {
             'mērnieks': 'mērniece',
             'mērniekam': 'mērniecei',
-            'mērnieka': 'mērnieces'
+            'mērnieka': 'mērnieces',
+            'mērnieku': 'mērnieci'
         }
         
         for paragraph in doc.paragraphs:
