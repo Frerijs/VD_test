@@ -269,7 +269,7 @@ def log_user_login(username):
         data = {
             "username": username,
             "App": "Vēstuļu draugs",
-            "Ver": "3.1",
+            "Ver": "4.4",
             "app_type": "web",
             "login_time": current_time
         }
