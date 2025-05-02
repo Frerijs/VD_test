@@ -109,26 +109,26 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
     
-    # Nomainām vairākas atstarpes ar vienu
-    text = re.sub(r'\s+', ' ', text)
-    
-    # Saglabājam atstarpes starp SIA un pēdiņām
-    text = re.sub(r'(SIA|AS|Z/S|IK)\s*"', r'\1 "', text, flags=re.IGNORECASE)
-    
-    # Saglabājam atstarpes teksta iekšpusē starp pēdiņām
-    if '"' in text:
-        parts = text.split('"')
-        if len(parts) >= 3:
-            prefix = parts[0].strip()  # Teksts pirms pirmajām pēdiņām
-            middle = parts[1].strip()  # Teksts starp pēdiņām
-            # Saglabājam atstarpes nosaukumā starp pēdiņām
-            if prefix:
-                text = f'{prefix} "{middle}"'
-            else:
-                text = f'"{middle}"'
-    
     # Notīrām liekās atstarpes sākumā un beigās
     text = text.strip()
+    
+    # Nomainām vairākas atstarpes starp vārdiem ar vienu atstarpi
+    text = re.sub(r'\s+', ' ', text)
+    
+    # Apstrādājam SIA gadījumu
+    if 'SIA' in text:
+        # Ja ir pēdiņas tekstā
+        if '"' in text:
+            # Sadalām tekstu pa pēdiņām
+            parts = text.split('"')
+            if len(parts) >= 3:
+                prefix = parts[0].strip()  # "SIA" daļa
+                company_name = parts[1]    # Uzņēmuma nosaukums starp pēdiņām
+                # Savienojam ar pareizu formatējumu
+                text = f'{prefix} "{company_name}"'
+        else:
+            # Ja nav pēdiņu, atstājam kā ir
+            text = text.strip()
     
     return text
 
@@ -695,6 +695,13 @@ def process_pdf_app():
                                 if "Vārds uzvārds/\nnosaukums" in df.columns:
                                     # Notīrām un formatējam uzņēmumu nosaukumus
                                     df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(clean_company_name)
+                                    st.sidebar.write("### Uzņēmumu nosaukumu pārbaude:")
+                                    for idx, row in df.iterrows():
+                                        if 'SIA' in str(row['Vārds uzvārds/\nnosaukums']):
+                                            st.sidebar.write(f"Oriģināls: {row['Vārds uzvārds/\nnosaukums']}")
+                                            cleaned = clean_company_name(row['Vārds uzvārds/\nnosaukums'])
+                                            st.sidebar.write(f"Pēc tīrīšanas: {cleaned}")
+                                            st.sidebar.write("---")
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
                                 if missing_columns:
