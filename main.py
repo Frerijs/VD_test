@@ -43,7 +43,12 @@ def clean_address_for_Adrese2(address):
         result = address[:idx].strip()
     else:
         result = address.strip()
-    
+    # Nodrošina, ka pirms vārda "iela" vienmēr ir atstarpe
+    result = re.sub(r'(?i)(?<!\s)(iela)', r' iela', result)
+    # Nodrošinām, ka pirms un pēc "-" vienmēr ir viena atstarpe
+    result = re.sub(r'\s*-\s*', ' - ', result)
+    # Pēc tam pārvēršam gadījumus, kad burts "k" (neatkarīgi no lieluma) ir tieši pirms "-" – rezultātā tiks saglabāta forma "k-"
+    result = re.sub(r'(?i)(k)\s*-\s*', r'\1-', result)
     
     return result
 
@@ -59,7 +64,9 @@ def extract_pasta_indekss(address):
     else:
         # Atgriežam visu pēc pēdējā komata
         value = address[idx+1:].strip()
-   
+    # Noņem liekās atstarpes ap mīnus zīmi, lai rezultāts būtu, piemēram, "LV-3001"
+    value = re.sub(r'\s*-\s*', '-', value)
+    return value
     
 def extract_valsts_kods_from_pasta_indekss(pasta_indekss):
     if not isinstance(pasta_indekss, str):
@@ -102,26 +109,49 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
     
+    # Nomainām vairākas rindiņas ar vienu atstarpi
+    text = re.sub(r'\s+', ' ', text)
     
+    # Labojam nepareizi savienotus vārdus (piemēram, "ValstsValsts" -> "Valsts Valsts")
+    text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
     
+    # Notīrām liekas atstarpes ap pēdiņām
+    text = re.sub(r'\s*"\s*', '"', text)
     
+    # Noņemam liekās atstarpes, bet saglabājam vienu atstarpi starp vārdiem
+    text = ' '.join(text.split())
     
-    
-    
-    
-    
-   
+    # Pārbaudām, vai ir pāra pēdiņu skaits
+    quote_count = text.count('"')
+    if quote_count == 2:
+        # Atrodam pirmo un pēdējo pēdiņu indeksu
+        first_quote = text.find('"')
+        last_quote = text.rfind('"')
         
+        # Sadalām tekstu trīs daļās: pirms pēdiņām, starp pēdiņām un pēc pēdiņām
+        before_quotes = text[:first_quote].strip()
+        between_quotes = text[first_quote+1:last_quote].strip()
         
-        
-        
+        # Savienojam atpakaļ ar pareizu formatējumu
+        text = f"{before_quotes} \"{between_quotes}\""
     
     return text.strip()
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
     if "Adrese" in df_csv.columns:
+        # Izmantojam clean_address_for_Adrese2 funkciju priekš Adrese 1
+        df_excel["Adrese 1"] = df_csv["Adrese"].apply(clean_address_for_Adrese2)
+        df_excel["Adrese 2"] = df_csv["Adrese"].apply(extract_second_part)
         
+        # Apstrādājam pārējos datus
+        df_excel["Pasta indekss"] = df_csv["Adrese"].apply(extract_pasta_indekss)
+        df_excel["Valsts kods (XX)"] = df_excel["Pasta indekss"].apply(extract_valsts_kods_from_pasta_indekss)
+        
+        # Veidojam pilno adresi no kolonnām
+        df_excel["Adrese"] = df_excel["Adrese 1"].fillna('') + ', ' + df_excel["Adrese 2"].fillna('')
+        df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
+
     if "VardsUzvārdsNosaukums" in df_csv.columns:
         # Vispirms notīrām un formatējam uzņēmumu nosaukumus
         df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
@@ -287,7 +317,12 @@ def show_login():
 
 def clean_address_field(address):
     if isinstance(address, str):
-        
+        address = address.replace('\r', '\n').strip()
+        address = re.sub(r',+\n', '\n', address)
+        address = re.sub(r'\n,+', '\n', address)
+        address = re.sub(r',{2,}', ',', address)
+        address = re.sub(r'^,|,$', '', address)
+        address = re.sub(r'\s*,\s*', ', ', address)
         return address
     return address
 
@@ -316,7 +351,14 @@ def restore_address_format(address):
     if not isinstance(address, str):
         return address
     text = address
-    
+    # Pievieno atstarpi starp burtiem un cipariem (piem., "gatve12" -> "gatve 12")
+    text = re.sub(r'([A-Za-zāčēģīķļņšž])(\d)', r'\1 \2', text, flags=re.IGNORECASE)
+    # Ja vārdi "Marsa" un "gatve" ir sapludināti, ievieto atstarpi.
+    text = re.sub(r'([A-Za-zāčēģīķļņšž]+)(gatve)', r'\1 \2', text, flags=re.IGNORECASE)
+    # Ja aiz mīnus zīmes seko atstarpe, aizvieto to ar rindu pārrāvumu.
+    text = re.sub(r'-\s', '-\n', text)
+    # Ja pēc komata nav atstarpes, ievieto to.
+    text = re.sub(r',(\S)', r', \1', text)
     return text
 
 def perform_mail_merge(template_path, records, output_dir):
@@ -433,7 +475,9 @@ def group_words_into_lines(words, y_tolerance=5):
     return lines
 
 def clean_property_name(name):
-    
+    name = re.sub(r'^\W+', '', name)
+    name = re.sub(r'\W+$', '', name)
+    name = name.strip()
     return name
 
 def process_pdf_app():
@@ -747,17 +791,7 @@ def process_pdf_app():
                 st.sidebar.dataframe(grouped_df)
                 grouped_csv = grouped_df.to_csv(index=False).encode('utf-8')
                 st.sidebar.markdown(download_link(grouped_csv, "grupeta_tabula_visas_lapas.csv", "Lejupielādēt grupēto tabulu CSV failā"), unsafe_allow_html=True)
-                
-                # Ja PDF apstrādē tika atrastas tabulas, izveidojam CSV ar datiem viens pret vienu
-                if all_tables_df:
-                    raw_pdf_data = pd.concat(all_tables_df, ignore_index=True)
-                    import csv  # ja nav iepriekš importēts
-                    raw_csv = raw_pdf_data.to_csv(index=False, quoting=csv.QUOTE_ALL).encode('utf-8')
-                    st.sidebar.markdown(
-                        download_link(raw_csv, "raw_dati_no_pdf.csv", "Lejupielādēt CSV ar datiem no PDF (viens pret vienu)"),
-                        unsafe_allow_html=True
-                    )
-                # Izmantojam process_csv_data() funkciju, lai sagatavotu Excel veidnei nākamai apstrādei
+                # Izmantojam process_csv_data(), lai sagatavotu pasta sarakstu
                 df_excel = process_csv_data(filtered_df)
                 def remove_line_breaks(text):
                     if isinstance(text, str):
