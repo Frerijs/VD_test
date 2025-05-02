@@ -109,13 +109,11 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
     
-    # Nomainām vairākas rindiņas ar vienu atstarpi
-    text = re.sub(r'\s+', ' ', text)
     
     
     
-    # Notīrām liekas atstarpes ap pēdiņām
-    text = re.sub(r'\s*"\s*', '"', text)
+    
+    
     
     
     
