@@ -117,8 +117,7 @@ def clean_company_name(text):
     # Notīrām liekas atstarpes ap pēdiņām
     text = re.sub(r'\s*"\s*', '"', text)
     
-    # Noņemam liekās atstarpes, bet saglabājam vienu atstarpi starp vārdiem
-    text = ' '.join(text.split())
+    
     
     # Pārbaudām, vai ir pāra pēdiņu skaits
     quote_count = text.count('"')
