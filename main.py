@@ -105,37 +105,6 @@ def extract_second_part(address):
     
     return result.strip()
 
-def clean_company_name(text):
-    if not isinstance(text, str):
-        return text
-    
-    # Nomainām vairākas rindiņas ar vienu atstarpi
-    text = re.sub(r'\s+', ' ', text)
-    
-    # Labojam nepareizi savienotus vārdus (piemēram, "ValstsValsts" -> "Valsts Valsts")
-    text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
-    
-    # Notīrām liekas atstarpes ap pēdiņām
-    text = re.sub(r'\s*"\s*', '"', text)
-    
-    # Noņemam liekās atstarpes, bet saglabājam vienu atstarpi starp vārdiem
-    text = ' '.join(text.split())
-    
-    # Pārbaudām, vai ir pāra pēdiņu skaits
-    quote_count = text.count('"')
-    if quote_count == 2:
-        # Atrodam pirmo un pēdējo pēdiņu indeksu
-        first_quote = text.find('"')
-        last_quote = text.rfind('"')
-        
-        # Sadalām tekstu trīs daļās: pirms pēdiņām, starp pēdiņām un pēc pēdiņām
-        before_quotes = text[:first_quote].strip()
-        between_quotes = text[first_quote+1:last_quote].strip()
-        
-        # Savienojam atpakaļ ar pareizu formatējumu
-        text = f"{before_quotes} \"{between_quotes}\""
-    
-    return text.strip()
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
