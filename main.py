@@ -108,31 +108,30 @@ def extract_second_part(address):
 def clean_company_name(text):
     if not isinstance(text, str):
         return text
-    
-    # Saglabājam oriģinālo tekstu maiņu gadījumam
-    original_text = text
-    
-    # Atrodam "SIA" un tekstu pēc tā
-    if "SIA" in text:
-        prefix = "SIA"
-        # Atrodam tekstu pēc "SIA"
-        text_after_sia = text[text.find("SIA") + 3:].strip()
         
-        # Meklējam tekstu pēdiņās
-        quote_match = re.search(r'"([^"]+)"', text_after_sia)
-        if quote_match:
-            # Ja atrodam tekstu pēdiņās, saglabājam to nemainītu
-            quoted_text = quote_match.group(1)
-            return f'{prefix} "{quoted_text}"'
-        else:
-            # Ja nav pēdiņu, apstrādājam tekstu
-            # Notīrām visas liekās atstarpes
-            text = re.sub(r'\s+', ' ', text_after_sia)
-            # Labojam nepareizi savienotus vārdus
-            text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
-            return f'{prefix} "{text.strip()}"'
+    # Noņemam liekās atstarpes sākumā un beigās
+    text = text.strip()
     
-    return original_text.strip()
+    # Apstrādājam SIA gadījumu
+    if "SIA" in text:
+        # Sadalām tekstu daļās ap SIA
+        before_sia = text[:text.find("SIA")].strip()
+        after_sia = text[text.find("SIA")+3:].strip()
+        
+        # Ja ir pēdiņas, saglabājam tekstu starp tām
+        if '"' in after_sia:
+            start_quote = after_sia.find('"')
+            end_quote = after_sia.rfind('"')
+            if start_quote != -1 and end_quote != -1 and start_quote != end_quote:
+                quoted_text = after_sia[start_quote+1:end_quote]
+                # Saglabājam atstarpes no oriģinālā teksta
+                return f'SIA "{quoted_text}"'
+        
+        # Ja nav pēdiņu, pievienojam tās un saglabājam atstarpes
+        cleaned_text = after_sia.strip()
+        return f'SIA "{cleaned_text}"'
+    
+    return text.strip()
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
@@ -697,26 +696,20 @@ def process_pdf_app():
                                     continue
                                 # Meklējam tabulā "Vārds uzvārds/\nnosaukums" kolonnu
                                 if "Vārds uzvārds/\nnosaukums" in df.columns:
-                                    # Saglabājam oriģinālos atstarpes pirms tīrīšanas
                                     df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].astype(str)
-                                    df["Oriģināls"] = df["Vārds uzvārds/\nnosaukums"].copy()
                                     
-                                    # Tīrām un formatējam uzņēmumu nosaukumus
-                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(clean_company_name)
+                                    # Saglabājam oriģinālās atstarpes
+                                    def preserve_spaces_in_name(text):
+                                        if "SIA" in text:
+                                            # Atrodam tekstu starp pēdiņām, ja tādas ir
+                                            match = re.search(r'SIA\s*"([^"]+)"', text)
+                                            if match:
+                                                company_name = match.group(1)
+                                                # Saglabājam oriģinālās atstarpes uzņēmuma nosaukumā
+                                                return f'SIA "{company_name}"'
+                                        return text
                                     
-                                    # Atjaunojam oriģinālās atstarpes, kur nepieciešams
-                                    def restore_spaces(row):
-                                        if "SIA" in row["Vārds uzvārds/\nnosaukums"]:
-                                            orig_spaces = re.search(r'"([^"]+)"', row["Oriģināls"])
-                                            if orig_spaces:
-                                                return row["Vārds uzvārds/\nnosaukums"].replace(
-                                                    re.search(r'"([^"]+)"', row["Vārds uzvārds/\nnosaukums"]).group(1),
-                                                    orig_spaces.group(1)
-                                                )
-                                        return row["Vārds uzvārds/\nnosaukums"]
-                                    
-                                    df["Vārds uzvārds/\nnosaukums"] = df.apply(restore_spaces, axis=1)
-                                    df = df.drop("Oriģināls", axis=1)
+                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(preserve_spaces_in_name)
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
                                 if missing_columns:
