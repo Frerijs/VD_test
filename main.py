@@ -128,8 +128,7 @@ def clean_company_name(text):
         before_quotes = text[:first_quote].strip()
         between_quotes = text[first_quote+1:last_quote].strip()
         
-        # Savienojam atpakaļ ar pareizu formatējumu
-        text = f"{before_quotes} \"{between_quotes}\""
+        
     
     return text.strip()
 
