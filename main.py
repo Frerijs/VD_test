@@ -693,15 +693,15 @@ def process_pdf_app():
                                     continue
                                 # Meklējam tabulā "Vārds uzvārds/\nnosaukums" kolonnu
                                 if "Vārds uzvārds/\nnosaukums" in df.columns:
-                                    # Notīrām un formatējam uzņēmumu nosaukumus
-                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(clean_company_name)
-                                    st.sidebar.write("### Uzņēmumu nosaukumu pārbaude:")
-                                    for idx, row in df.iterrows():
-                                        if 'SIA' in str(row['Vārds uzvārds/\nnosaukums']):
-                                            st.sidebar.write(f"Oriģināls: {row['Vārds uzvārds/\nnosaukums']}")
-                                            cleaned = clean_company_name(row['Vārds uzvārds/\nnosaukums'])
-                                            st.sidebar.write(f"Pēc tīrīšanas: {cleaned}")
-                                            st.sidebar.write("---")
+                                    # Saglabājam oriģinālos datus bez tīrīšanas
+                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(
+                                        lambda x: x.replace('\n', ' ').strip() if isinstance(x, str) else x
+                                    )
+                                    
+                                    # Pārbaudām un saglabājam precīzu SIA formātu
+                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(
+                                        lambda x: re.sub(r'(SIA)\s*"([^"]+)"', r'SIA "\2"', x) if isinstance(x, str) else x
+                                    )
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
                                 if missing_columns:
