@@ -333,6 +333,7 @@ def format_date_latvian(date_obj):
 def restore_address_format(address):
     if not isinstance(address, str):
         return address
+    text = address
     
     return text
 
