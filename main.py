@@ -115,8 +115,11 @@ def clean_company_name(text):
     # Labojam nepareizi savienotus vārdus (piemēram, "ValstsValsts" -> "Valsts Valsts")
     text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
     
-    # Notīrām liekas atstarpes ap pēdiņām
-    text = re.sub(r'\s*"\s*', '"', text)
+    # Notīram tikai liekas atstarpes pirms un pēc pēdiņām, bet saglabājam atstarpes starp pēdiņām
+    # Vispirms apstrādājam atstarpes pirms pēdiņām
+    text = re.sub(r'\s+(?=")', ' ', text)
+    # Tad atstarpes pēc pēdiņām
+    text = re.sub(r'(?<=")\s+', ' ', text)
     
     # Noņemam liekās atstarpes, bet saglabājam vienu atstarpi starp vārdiem
     text = ' '.join(text.split())
@@ -132,7 +135,7 @@ def clean_company_name(text):
         before_quotes = text[:first_quote].strip()
         between_quotes = text[first_quote+1:last_quote].strip()
         
-        # Savienojam atpakaļ ar pareizu formatējumu
+        # Savienojam atpakaļ ar pareizu formatējumu, saglabājot atstarpes starp vārdiem
         text = f"{before_quotes} \"{between_quotes}\""
     
     return text.strip()
