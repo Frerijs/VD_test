@@ -333,15 +333,7 @@ def format_date_latvian(date_obj):
 def restore_address_format(address):
     if not isinstance(address, str):
         return address
-    text = address
-    # Pievieno atstarpi starp burtiem un cipariem (piem., "gatve12" -> "gatve 12")
-    text = re.sub(r'([A-Za-zāčēģīķļņšž])(\d)', r'\1 \2', text, flags=re.IGNORECASE)
-    # Ja vārdi "Marsa" un "gatve" ir sapludināti, ievieto atstarpi.
-    text = re.sub(r'([A-Za-zāčēģīķļņšž]+)(gatve)', r'\1 \2', text, flags=re.IGNORECASE)
-    # Ja aiz mīnus zīmes seko atstarpe, aizvieto to ar rindu pārrāvumu.
-    text = re.sub(r'-\s', '-\n', text)
-    # Ja pēc komata nav atstarpes, ievieto to.
-    text = re.sub(r',(\S)', r', \1', text)
+    
     return text
 
 def perform_mail_merge(template_path, records, output_dir):
