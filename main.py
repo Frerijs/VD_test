@@ -109,28 +109,33 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
     
-    # Notīrām liekās atstarpes sākumā un beigās
-    text = text.strip()
-    
-    # Nomainām vairākas atstarpes starp vārdiem ar vienu atstarpi
+    # Nomainām vairākas rindiņas ar vienu atstarpi
     text = re.sub(r'\s+', ' ', text)
     
-    # Apstrādājam SIA gadījumu
-    if 'SIA' in text:
-        # Ja ir pēdiņas tekstā
-        if '"' in text:
-            # Sadalām tekstu pa pēdiņām
-            parts = text.split('"')
-            if len(parts) >= 3:
-                prefix = parts[0].strip()  # "SIA" daļa
-                company_name = parts[1]    # Uzņēmuma nosaukums starp pēdiņām
-                # Savienojam ar pareizu formatējumu
-                text = f'{prefix} "{company_name}"'
-        else:
-            # Ja nav pēdiņu, atstājam kā ir
-            text = text.strip()
+    # Labojam nepareizi savienotus vārdus (piemēram, "ValstsValsts" -> "Valsts Valsts")
+    text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
     
-    return text
+    # Notīrām liekas atstarpes ap pēdiņām
+    text = re.sub(r'\s*"\s*', '"', text)
+    
+    # Noņemam liekās atstarpes, bet saglabājam vienu atstarpi starp vārdiem
+    text = ' '.join(text.split())
+    
+    # Pārbaudām, vai ir pāra pēdiņu skaits
+    quote_count = text.count('"')
+    if quote_count == 2:
+        # Atrodam pirmo un pēdējo pēdiņu indeksu
+        first_quote = text.find('"')
+        last_quote = text.rfind('"')
+        
+        # Sadalām tekstu trīs daļās: pirms pēdiņām, starp pēdiņām un pēc pēdiņām
+        before_quotes = text[:first_quote].strip()
+        between_quotes = text[first_quote+1:last_quote].strip()
+        
+        # Savienojam atpakaļ ar pareizu formatējumu
+        text = f"{before_quotes} \"{between_quotes}\""
+    
+    return text.strip()
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
@@ -148,28 +153,30 @@ def process_csv_data(df_csv):
         df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
 
     if "VardsUzvārdsNosaukums" in df_csv.columns:
-        # Diagnostikas izdruka
-        for idx, row in df_csv.iterrows():
-            if 'SIA' in str(row['VardsUzvārdsNosaukums']):
-                print(f"Pirms tīrīšanas: {row['VardsUzvārdsNosaukums']}")
-                cleaned = clean_company_name(row['VardsUzvārdsNosaukums'])
-                print(f"Pēc tīrīšanas: {cleaned}")
-                print("-" * 50)
-        
-        # Tālākā apstrāde...
+        # Vispirms notīrām un formatējam uzņēmumu nosaukumus
         df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
         
-        # Identificējam uzņēmumus, bet saglabājam oriģinālo formatējumu
-        is_company = df_csv["VardsUzvārdsNosaukums"].str.contains(
-            r'\b(SIA|AS|Z/S|IK)\b|Sabiedrība ar|Valsts|Pašvaldība|ministrija|pārvalde|saimniecība',
-            na=False,
-            case=False,
-            regex=True
-        )
+        # Izveidojam masku katram uzņēmuma veidam
+        sia_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("SIA", na=False, case=False)
+        sabiedriba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Sabiedrība ar", na=False, case=False)
+        valsts_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Valsts", na=False, case=False)
+        pasvaldiba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Pašvaldība", na=False, case=False)
+        as_mask = df_csv["VardsUzvārdsNosaukums"].str.contains(r'\bAS\b', na=False, case=False)  # \b nodrošina, ka "AS" ir atsevišķs vārds
+        akciju_sab_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Akciju sabiedrība", na=False, case=False)
+        ministrija_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("ministrija", na=False, case=False)
+        parvalde_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("pārvalde", na=False, case=False)
+        zemnieku_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("saimniecība", na=False, case=False)
         
-        # Kopējam vērtības atbilstošajās kolonnās, saglabājot oriģinālo formatējumu
-        df_excel.loc[~is_company, "Vārds uzvārds"] = df_csv.loc[~is_company, "VardsUzvārdsNosaukums"]
-        df_excel.loc[is_company, "Uzņēmums"] = df_csv.loc[is_company, "VardsUzvārdsNosaukums"]
+        # Apvienojam visas maskas vienā, lai identificētu uzņēmumus
+        company_mask = (sia_mask | sabiedriba_mask | valsts_mask | pasvaldiba_mask | 
+                       as_mask | akciju_sab_mask | ministrija_mask | parvalde_mask |
+                       zemnieku_mask)
+        
+        # Kopējam vērtības "Vārds uzvārds" kolonnā tikai tām rindām, kur nav uzņēmums
+        df_excel.loc[~company_mask, "Vārds uzvārds"] = df_csv.loc[~company_mask, "VardsUzvārdsNosaukums"]
+        
+        # Kopējam vērtības "Uzņēmums" kolonnā tām rindām, kur ir uzņēmums
+        df_excel.loc[company_mask, "Uzņēmums"] = df_csv.loc[company_mask, "VardsUzvārdsNosaukums"]
     
     return df_excel
 
@@ -693,17 +700,8 @@ def process_pdf_app():
                                     continue
                                 # Meklējam tabulā "Vārds uzvārds/\nnosaukums" kolonnu
                                 if "Vārds uzvārds/\nnosaukums" in df.columns:
-                                    # Saglabājam oriģinālos datus, aizstājot tikai \n ar atstarpi
-                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(
-                                        lambda x: x.replace('\n', ' ').strip() if isinstance(x, str) else x
-                                    )
-                                    
-                                    # Saglabājam atstarpes starp vārdiem uzņēmuma nosaukumā
-                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(
-                                        lambda x: re.sub(r'(SIA)\s*"([^"]+)"', 
-                                                        lambda m: f'SIA "{m.group(2)}"'.replace('  ', ' '), 
-                                                        x, flags=re.IGNORECASE) if isinstance(x, str) else x
-                                    )
+                                    # Notīrām un formatējam uzņēmumu nosaukumus
+                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(clean_company_name)
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
                                 if missing_columns:
@@ -807,17 +805,6 @@ def process_pdf_app():
                 excel_data = to_excel(df_excel)
                 st.sidebar.markdown(download_link(excel_data, 'pasta_saraksts.xlsx', "Lejupielādēt pasta sarakstu"), unsafe_allow_html=True)
                 st.session_state.excel_data = excel_data
-
-                # Pārbaudām un izvadām brīdinājumu, ja atrasti potenciāli nepareizi formatēti uzņēmumu nosaukumi
-                potential_issues = grouped_df[
-                    grouped_df['VardsUzvārdsNosaukums'].str.contains('SIA', case=False, na=False) &
-                    ~grouped_df['VardsUzvārdsNosaukums'].str.contains(r'SIA\s+"', na=False)
-                ]
-                
-                if not potential_issues.empty:
-                    st.sidebar.warning("Atrasti potenciāli nepareizi formatēti uzņēmumu nosaukumi:")
-                    st.sidebar.dataframe(potential_issues[['VardsUzvārdsNosaukums']])
-
             records = filtered_df.to_dict(orient='records')
             if records:
                 template_path = "template.docx"
