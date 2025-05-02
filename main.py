@@ -305,12 +305,7 @@ def show_login():
 
 def clean_address_field(address):
     if isinstance(address, str):
-        address = address.replace('\r', '\n').strip()
-        address = re.sub(r',+\n', '\n', address)
-        address = re.sub(r'\n,+', '\n', address)
-        address = re.sub(r',{2,}', ',', address)
-        address = re.sub(r'^,|,$', '', address)
-        address = re.sub(r'\s*,\s*', ', ', address)
+        
         return address
     return address
 
