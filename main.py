@@ -117,16 +117,9 @@ def clean_company_name(text):
     
     
     
-    # Pārbaudām, vai ir pāra pēdiņu skaits
-    quote_count = text.count('"')
-    if quote_count == 2:
-        # Atrodam pirmo un pēdējo pēdiņu indeksu
-        first_quote = text.find('"')
-        last_quote = text.rfind('"')
+   
         
-        # Sadalām tekstu trīs daļās: pirms pēdiņām, starp pēdiņām un pēc pēdiņām
-        before_quotes = text[:first_quote].strip()
-        between_quotes = text[first_quote+1:last_quote].strip()
+        
         
         
     
