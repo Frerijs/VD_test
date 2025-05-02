@@ -136,37 +136,6 @@ def clean_company_name(text):
         text = f"{before_quotes} \"{between_quotes}\""
     
     return text.strip()
-# Pievienot jaunu funkciju pēc clean_company_name funkcijas
-
-def detect_gender_by_name(full_name):
-    """
-    Nosaka dzimumu pēc vārda, meklējot sieviešu vārdu galotnes
-    Returns: 'F' sievietēm, 'M' vīriešiem
-    """
-    if not isinstance(full_name, str):
-        return 'M'  # Noklusējuma vērtība
-    
-    # Sadalām pilno vārdu, lai pārbaudītu pirmo vārdu
-    first_name = full_name.split()[0] if full_name.split() else ''
-    
-    # Tipiskas sieviešu vārdu galotnes latviešu valodā
-    female_endings = ['a', 'e', 'ija', 'īte']
-    
-    # Izņēmumi - vīriešu vārdi, kas beidzas ar 'a' vai 'e'
-    male_exceptions = ['janka', 'juska', 'male']
-    
-    first_name_lower = first_name.lower()
-    
-    # Pārbaudam izņēmumus
-    if first_name_lower in male_exceptions:
-        return 'M'
-    
-    # Pārbaudam galotnes
-    for ending in female_endings:
-        if first_name_lower.endswith(ending):
-            return 'F'
-    
-    return 'M'
 
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
@@ -392,6 +361,47 @@ def restore_address_format(address):
     text = re.sub(r',(\S)', r', \1', text)
     return text
 
+def detect_gender_by_name(full_name):
+    """
+    Nosaka dzimumu pēc vārda, meklējot sieviešu vārdu galotnes
+    """
+    if not isinstance(full_name, str):
+        return 'M'
+    
+    first_name = full_name.split()[0] if full_name.split() else ''
+    female_endings = ['a', 'e', 'ija', 'īte']
+    male_exceptions = ['janka', 'juska', 'male']
+    
+    first_name_lower = first_name.lower()
+    
+    if first_name_lower in male_exceptions:
+        return 'M'
+    
+    for ending in female_endings:
+        if first_name_lower.endswith(ending):
+            return 'F'
+    
+    return 'M'
+
+def replace_gender_specific_words(doc, is_female):
+    """
+    Aizvieto dzimumspecifiskos vārdus dokumenta tekstā
+    """
+    if is_female:
+        replacements = {
+            'mērnieks': 'mērniece',
+            'mērniekam': 'mērniecei',
+            'mērnieka': 'mērnieces'
+        }
+        
+        for paragraph in doc.paragraphs:
+            for old_word, new_word in replacements.items():
+                if old_word in paragraph.text:
+                    inline = paragraph.runs
+                    for item in inline:
+                        if old_word in item.text:
+                            item.text = item.text.replace(old_word, new_word)
+
 def perform_mail_merge(template_path, records, output_dir):
     output_paths = []
     try:
@@ -404,36 +414,16 @@ def perform_mail_merge(template_path, records, output_dir):
         try:
             context = record.copy()
             
-            # Pārbaudām mērnieka dzimumu
-            mernieka_dzimums = detect_gender_by_name(record.get('Mērnieks_Vārds_Uzvārds', ''))
-            
-            # Pievienojam kontekstam papildus mainīgos atkarībā no dzimuma
-            if mernieka_dzimums == 'F':
-                context['mernieks'] = 'mērniece'
-                context['mernieka'] = 'mērnieces'
-                context['merniekam'] = 'mērniecei'
-            else:
-                context['mernieks'] = 'mērnieks'
-                context['mernieka'] = 'mērnieka'
-                context['merniekam'] = 'mērniekam'
-            # Apstrādājam 'Adrese' lauku:
+            # Pārējais konteksta apstrādes kods...
             address = record.get('Adrese', '')
-            # 1. Noņemam esošos rindu pārrāvumus, aizvietojot tos ar atstarpi
             address = address.replace('\n', ' ')
-            # 2. Ievietojam rindu pārrāvumu pēc katra komata (ar jebkuru atstarpju virkni pēc komata)
             address = re.sub(r',\s*', ',\n', address)
-            # 3. Nodrošinām, ka vienmēr pirms vārda "iela" (neatkarīgi no lielajiem/mazajiem burtiem) ir atstarpe
             address = re.sub(r'(?i)(?<!\s)(iela)', r' iela', address)
-            # 4. Nodrošinām, ka pirms un pēc "-" visur ir atstarpe
             address = re.sub(r'\s*-\s*', ' - ', address)
-            # 5. Atjaunojam "LV" formātu: gadījumos, kad pēc "LV" seko "-" un četri cipari, novēršam atstarpes
             address = re.sub(r'(?i)(LV)\s*-\s*(\d{4})', r'\1-\2', address)
-            context['Adrese'] = address
-            # 6. Nodrošinām, ka starp burta "k" un simbola "-" vienmēr nav atstarpe
             address = re.sub(r'(?i)(k)\s*-\s*', r'\1-', address)
             context['Adrese'] = address
             
-            # Apstrādājam 'VardsUzvārdsNosaukums' lauku, lai tas tiktu attēlots vienā rindā
             if 'VardsUzvārdsNosaukums' in context:
                 context['VardsUzvārdsNosaukums'] = context['VardsUzvārdsNosaukums'].replace('\n', ' ')
             else:
@@ -442,6 +432,17 @@ def perform_mail_merge(template_path, records, output_dir):
             template.render(context)
             output_path = os.path.join(output_dir, f"merged_document_{idx+1}.docx")
             template.save(output_path)
+            
+            # Pēc template renderēšanas pārbaudām dzimumu un veicam aizvietošanu
+            doc = Document(output_path)
+            is_female = detect_gender_by_name(record.get('Mērnieks_Vārds_Uzvārds', ''))
+            if is_female:
+                replace_gender_specific_words(doc, is_female)
+            
+            # Saglabājam dokumentu ar veiktajām izmaiņām
+            doc.save(output_path)
+            
+            # Iestatām dokumenta skatu
             doc = Document(output_path)
             settings = doc.settings
             view = settings.element.find(qn('w:view'))
@@ -452,12 +453,13 @@ def perform_mail_merge(template_path, records, output_dir):
                 view.set(qn('w:val'), 'print')
                 settings.element.append(view)
             doc.save(output_path)
+            
             output_paths.append(output_path)
         except Exception as e:
             show_error(f"Kļūda renderējot ierakstu {idx+1}: {e}")
             continue
     return output_paths
-    
+
 def merge_word_documents(file_paths, merged_output_path):
     if not file_paths:
         show_error_sidebar_only("Nav dokumentu, kas varētu tikt apvienoti.")
