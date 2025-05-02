@@ -109,72 +109,30 @@ def clean_company_name(text):
     if not isinstance(text, str):
         return text
     
-    # Saglabāsim sākotnējo tekstu, ja tas satur "SIA" un vismaz vienu atstarpi
-    if "SIA" in text and " " in text:
-        # Pārbaudām, vai uzņēmuma nosaukumā ir vairāki vārdi
-        parts = text.split()
-        if len(parts) > 2:  # "SIA" + vismaz divi vārdi nosaukumā
-            # Labojam tikai nepareizi savienotus vārdus
-            text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
-            # Noņemam liekās atstarpes
-            text = ' '.join(text.split())
-            return text.strip()
-    
     # Nomainām vairākas rindiņas ar vienu atstarpi
     text = re.sub(r'\s+', ' ', text)
     
     # Labojam nepareizi savienotus vārdus (piemēram, "ValstsValsts" -> "Valsts Valsts")
     text = re.sub(r'([a-zāčēģīķļņšūž])([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
     
-    # Īpaši apstrādājam SIA nosaukumus
-    if "SIA" in text:
-        # Pārbaudām, vai pēc "SIA" seko liels burts bez atstarpes
-        text = re.sub(r'(SIA)([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', text)
-        
-        # Atjaunojam atstarpi starp vārdiem uzņēmuma nosaukumā
-        # Piemēram: "SIA BĒNESPB" -> "SIA BĒNES PB"
-        if "SIA " in text:
-            after_sia = text.split("SIA ", 1)[1]
-            if re.search(r'[A-ZĀČĒĢĪĶĻŅŠŪŽ]{5,}', after_sia):  # Ja ir garš nosaukums ar lieliem burtiem
-                # Mēģinām atpazīt potenciālos vārdus nosaukumā
-                words = re.findall(r'[A-ZĀČĒĢĪĶĻŅŠŪŽ]+', after_sia)
-                if len(words) >= 2:
-                    # Ievietojam atstarpes starp vārdiem (piem., "BĒNESPB" -> "BĒNES PB")
-                    for word in words:
-                        if len(word) > 4:  # Garāki vārdi var būt savienoti
-                            parts = []
-                            current_part = ""
-                            for i, char in enumerate(word):
-                                if i > 0 and current_part and len(current_part) >= 2:
-                                    # Ja ir konsonants un nākamais burts ir liels burts, tas var būt jaunas vārda sākums
-                                    if char.isupper() and word[i-1].lower() in "bcdfghjklmnpqrstvwxzčģķļņšž":
-                                        parts.append(current_part)
-                                        current_part = char
-                                    else:
-                                        current_part += char
-                                else:
-                                    current_part += char
-                            if current_part:
-                                parts.append(current_part)
-                            
-                            if len(parts) > 1:
-                                # Aizstājam oriģinālo vārdu ar atdalītiem vārdiem
-                                separated_word = " ".join(parts)
-                                text = text.replace(word, separated_word)
+    # Notīrām liekas atstarpes ap pēdiņām
+    text = re.sub(r'\s*"\s*', '"', text)
     
-    # Notīrām liekās atstarpes, bet saglabājam atstarpes starp vārdiem
+    # Noņemam liekās atstarpes, bet saglabājam vienu atstarpi starp vārdiem
     text = ' '.join(text.split())
     
-    # Pārbaudām, vai ir pēdiņas un apstrādājam tekstu starp tām
+    # Pārbaudām, vai ir pāra pēdiņu skaits
     quote_count = text.count('"')
     if quote_count == 2:
+        # Atrodam pirmo un pēdējo pēdiņu indeksu
         first_quote = text.find('"')
         last_quote = text.rfind('"')
         
+        # Sadalām tekstu trīs daļās: pirms pēdiņām, starp pēdiņām un pēc pēdiņām
         before_quotes = text[:first_quote].strip()
         between_quotes = text[first_quote+1:last_quote].strip()
         
-        # Savienojam atpakaļ ar pareizu formatējumu, saglabājot atstarpes starp vārdiem
+        # Savienojam atpakaļ ar pareizu formatējumu
         text = f"{before_quotes} \"{between_quotes}\""
     
     return text.strip()
@@ -195,15 +153,15 @@ def process_csv_data(df_csv):
         df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
 
     if "VardsUzvārdsNosaukums" in df_csv.columns:
-        # Vispirms notīrām un formatējam uzņēmumu nosaukumus
-        df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
+        # Atspējojam šo rindu, kas maina formātu:
+        # df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
         
         # Izveidojam masku katram uzņēmuma veidam
         sia_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("SIA", na=False, case=False)
         sabiedriba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Sabiedrība ar", na=False, case=False)
         valsts_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Valsts", na=False, case=False)
         pasvaldiba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Pašvaldība", na=False, case=False)
-        as_mask = df_csv["VardsUzvārdsNosaukums"].str.contains(r'\bAS\b', na=False, case=False)  # \b nodrošina, ka "AS" ir atsevišķs vārds
+        as_mask = df_csv["VardsUzvārdsNosaukums"].str.contains(r'\bAS\b', na=False, case=False)
         akciju_sab_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Akciju sabiedrība", na=False, case=False)
         ministrija_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("ministrija", na=False, case=False)
         parvalde_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("pārvalde", na=False, case=False)
@@ -497,14 +455,9 @@ def perform_full_mail_merge(template_path, records):
             return None
 
 def group_words_into_lines(words, y_tolerance=5):
-    """
-    Uzlabota funkcija, kas grupē vārdus rindās, cenšoties saglabāt atstarpes
-    """
     lines = []
     current_line = []
     current_top = None
-    
-    # Sakārtojam vārdus pēc vertikālās pozīcijas
     for word in sorted(words, key=lambda x: x['top']):
         if current_top is None:
             current_top = word['top']
@@ -512,85 +465,48 @@ def group_words_into_lines(words, y_tolerance=5):
         elif abs(word['top'] - current_top) <= y_tolerance:
             current_line.append(word)
         else:
-            # Apstrādājam esošo rindu
-            if current_line:
-                # Sakārtojam vārdus horizontāli
-                sorted_line = sorted(current_line, key=lambda x: x['x0'])
-                
-                # Izveidojam tekstu ar precīzām atstarpēm
-                line_text = ""
-                prev_end = None
-                for w in sorted_line:
-                    if prev_end is not None:
-                        # Aprēķinām atstarpi starp vārdiem
-                        gap = w['x0'] - prev_end
-                        
-                        # Pievienojam atbilstošu atstarpi
-                        if gap < 1.0:  # Vārdi ir ļoti tuvu kopā
-                            line_text += w['text']
-                        elif gap < 8.0:  # Viena atstarpe
-                            line_text += ' ' + w['text']
-                        else:  # Vairākas atstarpes, lai saglabātu proporcijas
-                            spaces = int(gap / 4.0)  # 4 ir vidējais atstarpes platums
-                            line_text += ' ' * min(spaces, 4) + w['text']
-                    else:
-                        line_text = w['text']
-                    
-                    prev_end = w['x0'] + w['width']
-                
-                # Īpaša apstrāde uzņēmumiem ar lielajiem burtiem (BĒNESPB)
-                if "SIA" in line_text:
-                    for known_word in ["BĒNESPB", "BĒNESAKM", "DOBELESPB"]:
-                        if known_word in line_text:
-                            formatted_word = " ".join([known_word[:5], known_word[5:]])
-                            line_text = line_text.replace(known_word, formatted_word)
-                
-                lines.append({
-                    'text': line_text.strip(),
-                    'top': current_top,
-                    'bottom': max([w['bottom'] for w in current_line]),
-                    'x0': min([w['x0'] for w in current_line]),
-                    'x1': max([w['x1'] for w in current_line])
-                })
+            # Precīzi saglabājam vārdu pozīcijas un atstarpes starp tiem
+            sorted_words = sorted(current_line, key=lambda x: x['x0'])
+            line_text = ""
+            prev_end = None
             
-            # Sākam jaunu rindu
+            for w in sorted_words:
+                if prev_end is not None:
+                    # Aprēķinām precīzu atstarpes platumu
+                    space = w['x0'] - prev_end
+                    # Pievienojam aptuveni tādu pašu skaitu atstarpes kā PDF
+                    if space > 0:
+                        space_count = max(1, int(space / 4))  # 4 punkti ir vidējais atstarpes platums
+                        line_text += ' ' * space_count
+                    line_text += w['text']
+                else:
+                    line_text = w['text']
+                
+                prev_end = w['x0'] + w['width']
+            
+            lines.append({'text': line_text, 'top': current_top})
             current_line = [word]
             current_top = word['top']
     
     # Apstrādājam pēdējo rindu
     if current_line:
-        sorted_line = sorted(current_line, key=lambda x: x['x0'])
+        sorted_words = sorted(current_line, key=lambda x: x['x0'])
         line_text = ""
         prev_end = None
         
-        for w in sorted_line:
+        for w in sorted_words:
             if prev_end is not None:
-                gap = w['x0'] - prev_end
-                if gap < 1.0:
-                    line_text += w['text']
-                elif gap < 8.0:
-                    line_text += ' ' + w['text']
-                else:
-                    spaces = int(gap / 4.0)
-                    line_text += ' ' * min(spaces, 4) + w['text']
+                space = w['x0'] - prev_end
+                if space > 0:
+                    space_count = max(1, int(space / 4))
+                    line_text += ' ' * space_count
+                line_text += w['text']
             else:
                 line_text = w['text']
+            
             prev_end = w['x0'] + w['width']
         
-        # Īpaša apstrāde zināmajiem uzņēmumiem
-        if "SIA" in line_text:
-            for known_word in ["BĒNESPB", "BĒNESAKM", "DOBELESPB"]:
-                if known_word in line_text:
-                    formatted_word = " ".join([known_word[:5], known_word[5:]])
-                    line_text = line_text.replace(known_word, formatted_word)
-        
-        lines.append({
-            'text': line_text.strip(),
-            'top': current_top,
-            'bottom': max([w['bottom'] for w in current_line]),
-            'x0': min([w['x0'] for w in current_line]),
-            'x1': max([w['x1'] for w in current_line])
-        })
+        lines.append({'text': line_text, 'top': current_top})
     
     return lines
 
@@ -600,91 +516,32 @@ def clean_property_name(name):
     name = name.strip()
     return name
 
-# Pievienojam šo funkciju pirms vai pēc process_pdf_app()
-def fix_spacing_in_table_data(df):
+def preserve_original_format(df):
     """
-    Uzlabota funkcija, kas atjauno atstarpes uzņēmumu nosaukumos PDF tabulās
+    Nodrošina, ka tabulas dati tiek saglabāti precīzi kā oriģinālā PDF
     """
-    if "Vārds uzvārds/\nnosaukums" in df.columns:
-        # 1. Saglabājam oriģinālos datus pirms apstrādes
-        original_data = df["Vārds uzvārds/\nnosaukums"].copy()
-        
-        # 2. Vispirms labojam SIA gadījumus ar pēdiņām
-        df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(lambda x: 
-            re.sub(r'SIA\s*"([^"]+)"', r'SIA "\1"', str(x)) if isinstance(x, str) else x
-        )
-        
-        # 3. Noteikti meklējam konkrētus uzņēmumu nosaukumus un atjaunojam atstarpes
-        known_patterns = {
-            "BĒNESPB": "BĒNES PB",
-            "BĒNES PB": "BĒNES PB",  # Jau pareizā formā, bet pārliecināmies
-            # Pievienojiet citus biežāk sastopamos uzņēmumu nosaukumus
-        }
-        
-        for pattern, replacement in known_patterns.items():
-            df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(lambda x:
-                re.sub(r'SIA\s*"?' + pattern + r'"?', f'SIA "{replacement}"', str(x), flags=re.IGNORECASE) 
-                if isinstance(x, str) else x
-            )
-            df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(lambda x:
-                re.sub(r'SIA\s+' + pattern, f'SIA "{replacement}"', str(x), flags=re.IGNORECASE) 
-                if isinstance(x, str) else x
-            )
-        
-        # 4. Meklējam visus lielos burtus vārdos bez atstarpēm
-        df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(lambda x:
-            fix_capital_word_spacing(x) if isinstance(x, str) else x
-        )
-        
-        # 5. Īpaša apstrāde SIA gadījumiem
-        df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(lambda x:
-            re.sub(r'(SIA)([A-ZĀČĒĢĪĶĻŅŠŪŽ])', r'\1 \2', str(x)) if isinstance(x, str) else x
-        )
-        
-        # 6. Pārbaudām, vai dati ir mainījušies un izvadām logs par izmaiņām
-        changed_rows = df[df["Vārds uzvārds/\nnosaukums"] != original_data]
-        for i, row in changed_rows.iterrows():
-            original = original_data.iloc[i] if i < len(original_data) else "N/A"
-            new_value = row["Vārds uzvārds/\nnosaukums"]
-            print(f"Labots nosaukums: '{original}' -> '{new_value}'")
-    
-    return df
+    return df  # Vienkārši atgriežam oriģinālo DataFrame bez jebkādām izmaiņām
 
-def fix_capital_word_spacing(text):
+def validate_data_preservation(original_df, exported_df, key_columns):
     """
-    Specializēta funkcija, kas atrod vārdus, kas sastāv no lieliem burtiem, 
-    un mēģina tos atdalīt ar atstarpēm, ja tajos ir apslēpti vairāki vārdi
+    Pārbauda, vai eksportētajos datos ir saglabāti oriģinālie dati bez izmaiņām
     """
-    # Atrodam vārdus, kas sastāv no lielajiem burtiem
-    capital_words = re.findall(r'[A-ZĀČĒĢĪĶĻŅŠŪŽ]{4,}', text)
+    differences = []
     
-    for word in capital_words:
-        # Analizējam vārdu un mēģinām atrast vietas, kur būtu jābūt atstarpēm
-        if len(word) >= 5:  # Pietiekami garš, lai būtu vairāki vārdi
-            modified_word = word
-            
-            # 1. Sadalām pie burta maiņas no līdzskaņa uz patskani (BĒNESPB -> BĒNES PB)
-            vowels = "AEIOUĀĒĪŪ"
-            consonants = "BCDFGHJKLMNPQRSTVWXZČĢĶĻŅŠŽ"
-            
-            for i in range(1, len(word) - 1):
-                # Ja iepriekšējā burta grupa ir viena no biežāk sastopamām kombinācijām
-                common_ends = ["ES", "AS", "IS", "US", "ĀS", "ĒS", "ĪS", "OS"]
-                if i >= 2 and any(word[i-2:i].endswith(end) for end in common_ends):
-                    modified_word = modified_word[:i] + " " + modified_word[i:]
-                    break
-            
-            # 2. Ja pirmais mēģinājums nedeva rezultātus, mēģinām citu pieeju
-            if modified_word == word and len(word) > 5:
-                # Sadalām apmēram pa vidu, ja ir pietiekami garš vārds
-                mid = len(word) // 2
-                modified_word = word[:mid] + " " + word[mid:]
-            
-            # 3. Ja vārds ir mainījies, aizstājam oriģinālo vārdu
-            if modified_word != word:
-                text = text.replace(word, modified_word)
+    for key_col in key_columns:
+        if key_col in original_df.columns and key_col in exported_df.columns:
+            for idx, original_value in enumerate(original_df[key_col]):
+                if idx < len(exported_df):
+                    exported_value = exported_df[key_col].iloc[idx]
+                    if str(original_value) != str(exported_value):
+                        differences.append({
+                            "column": key_col,
+                            "row": idx + 1,
+                            "original": original_value,
+                            "exported": exported_value
+                        })
     
-    return text
+    return differences
 
 def process_pdf_app():
     st.markdown("<h1 style='text-align: center; color: #AC3356;'>Vēstuļu draugs</h1>", unsafe_allow_html=True)
@@ -906,12 +763,8 @@ def process_pdf_app():
                                     continue
                                 # Meklējam tabulā "Vārds uzvārds/\nnosaukums" kolonnu
                                 if "Vārds uzvārds/\nnosaukums" in df.columns:
-                                    # Īpaša apstrāde PDF tabulām, saglabājot atstarpes
-                                    df = fix_spacing_in_table_data(df)
-                                    
-                                    # Pierakstām tabulas oriģinālo tekstu logā, lai var diagnosticēt
-                                    st.sidebar.markdown("#### Oriģinālā tabula pirms apstrādes")
-                                    st.sidebar.dataframe(df)
+                                    # Atstājam datus nemainītus, precīzā oriģinālformā
+                                    pass
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
                                 if missing_columns:
@@ -996,11 +849,38 @@ def process_pdf_app():
                 st.sidebar.info("Nav adresātu ar '(miris)' informāciju.")
             st.sidebar.markdown("### Grupēta Tabula - Visas Lapas")
             if not grouped_df.empty:
-                # Pārvēršam 'Adreses' tekstu vienā rindā, aizvietojot rindu pārrāvumus ar atstarpi
-                # grouped_df['Adrese'] = grouped_df['Adrese'].str.replace('\n', ' ')
+                # Jauns kods, kas nodrošina oriģinālo formatējumu
+                # Izveido PDF oriģinālo datu kopiju pirms grupēšanas un eksportēšanas
+                original_format_df = df_all.copy()
+                
+                # Eksportējam PDF tabulas oriģinālā formātā bez jebkādām izmaiņām
+                if not original_format_df.empty:
+                    st.sidebar.markdown("### Oriģinālās tabulas dati (precīzi no PDF)")
+                    st.sidebar.dataframe(original_format_df)
+                    original_csv = original_format_df.to_csv(index=False).encode('utf-8')
+                    st.sidebar.markdown(download_link(original_csv, "original_pdf_data.csv", "Lejupielādēt oriģinālo PDF datu CSV failu"), unsafe_allow_html=True)
+                
+                # Turpinām ar standarta apstrādes procesiem
                 st.sidebar.dataframe(grouped_df)
                 grouped_csv = grouped_df.to_csv(index=False).encode('utf-8')
                 st.sidebar.markdown(download_link(grouped_csv, "grupeta_tabula_visas_lapas.csv", "Lejupielādēt grupēto tabulu CSV failā"), unsafe_allow_html=True)
+                
+                # Validējam eksportētos datus
+                differences = validate_data_preservation(
+                    df_all,
+                    grouped_df, 
+                    ["Vārds uzvārds/\nnosaukums", "Adrese"]
+                )
+                
+                if differences:
+                    st.sidebar.warning(f"Atrasta {len(differences)} atšķirība(s) starp oriģinālu un eksportu:")
+                    for diff in differences[:5]:  # Parādam pirmās 5 atšķirības
+                        st.sidebar.info(f"Kolonna: {diff['column']}, Rinda: {diff['row']}\n"
+                                       f"Oriģināls: '{diff['original']}'\n"
+                                       f"Eksports: '{diff['exported']}'")
+                else:
+                    st.sidebar.success("Datu pārbaude veiksmīga: Visi dati saglabāti precīzi kā oriģinālā PDF!")
+                
                 # Izmantojam process_csv_data(), lai sagatavotu pasta sarakstu
                 df_excel = process_csv_data(filtered_df)
                 def remove_line_breaks(text):
