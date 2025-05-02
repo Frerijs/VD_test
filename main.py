@@ -153,15 +153,15 @@ def process_csv_data(df_csv):
         df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
 
     if "VardsUzvārdsNosaukums" in df_csv.columns:
-        # Atspējojam šo rindu, kas maina formātu:
-        # df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
+        # Vispirms notīrām un formatējam uzņēmumu nosaukumus
+        df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
         
         # Izveidojam masku katram uzņēmuma veidam
         sia_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("SIA", na=False, case=False)
         sabiedriba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Sabiedrība ar", na=False, case=False)
         valsts_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Valsts", na=False, case=False)
         pasvaldiba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Pašvaldība", na=False, case=False)
-        as_mask = df_csv["VardsUzvārdsNosaukums"].str.contains(r'\bAS\b', na=False, case=False)
+        as_mask = df_csv["VardsUzvārdsNosaukums"].str.contains(r'\bAS\b', na=False, case=False)  # \b nodrošina, ka "AS" ir atsevišķs vārds
         akciju_sab_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Akciju sabiedrība", na=False, case=False)
         ministrija_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("ministrija", na=False, case=False)
         parvalde_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("pārvalde", na=False, case=False)
@@ -465,49 +465,13 @@ def group_words_into_lines(words, y_tolerance=5):
         elif abs(word['top'] - current_top) <= y_tolerance:
             current_line.append(word)
         else:
-            # Precīzi saglabājam vārdu pozīcijas un atstarpes starp tiem
-            sorted_words = sorted(current_line, key=lambda x: x['x0'])
-            line_text = ""
-            prev_end = None
-            
-            for w in sorted_words:
-                if prev_end is not None:
-                    # Aprēķinām precīzu atstarpes platumu
-                    space = w['x0'] - prev_end
-                    # Pievienojam aptuveni tādu pašu skaitu atstarpes kā PDF
-                    if space > 0:
-                        space_count = max(1, int(space / 4))  # 4 punkti ir vidējais atstarpes platums
-                        line_text += ' ' * space_count
-                    line_text += w['text']
-                else:
-                    line_text = w['text']
-                
-                prev_end = w['x0'] + w['width']
-            
+            line_text = ' '.join([w['text'] for w in sorted(current_line, key=lambda x: x['x0'])])
             lines.append({'text': line_text, 'top': current_top})
             current_line = [word]
             current_top = word['top']
-    
-    # Apstrādājam pēdējo rindu
     if current_line:
-        sorted_words = sorted(current_line, key=lambda x: x['x0'])
-        line_text = ""
-        prev_end = None
-        
-        for w in sorted_words:
-            if prev_end is not None:
-                space = w['x0'] - prev_end
-                if space > 0:
-                    space_count = max(1, int(space / 4))
-                    line_text += ' ' * space_count
-                line_text += w['text']
-            else:
-                line_text = w['text']
-            
-            prev_end = w['x0'] + w['width']
-        
+        line_text = ' '.join([w['text'] for w in sorted(current_line, key=lambda x: x['x0'])])
         lines.append({'text': line_text, 'top': current_top})
-    
     return lines
 
 def clean_property_name(name):
@@ -515,33 +479,6 @@ def clean_property_name(name):
     name = re.sub(r'\W+$', '', name)
     name = name.strip()
     return name
-
-def preserve_original_format(df):
-    """
-    Nodrošina, ka tabulas dati tiek saglabāti precīzi kā oriģinālā PDF
-    """
-    return df  # Vienkārši atgriežam oriģinālo DataFrame bez jebkādām izmaiņām
-
-def validate_data_preservation(original_df, exported_df, key_columns):
-    """
-    Pārbauda, vai eksportētajos datos ir saglabāti oriģinālie dati bez izmaiņām
-    """
-    differences = []
-    
-    for key_col in key_columns:
-        if key_col in original_df.columns and key_col in exported_df.columns:
-            for idx, original_value in enumerate(original_df[key_col]):
-                if idx < len(exported_df):
-                    exported_value = exported_df[key_col].iloc[idx]
-                    if str(original_value) != str(exported_value):
-                        differences.append({
-                            "column": key_col,
-                            "row": idx + 1,
-                            "original": original_value,
-                            "exported": exported_value
-                        })
-    
-    return differences
 
 def process_pdf_app():
     st.markdown("<h1 style='text-align: center; color: #AC3356;'>Vēstuļu draugs</h1>", unsafe_allow_html=True)
@@ -763,8 +700,8 @@ def process_pdf_app():
                                     continue
                                 # Meklējam tabulā "Vārds uzvārds/\nnosaukums" kolonnu
                                 if "Vārds uzvārds/\nnosaukums" in df.columns:
-                                    # Atstājam datus nemainītus, precīzā oriģinālformā
-                                    pass
+                                    # Notīrām un formatējam uzņēmumu nosaukumus
+                                    df["Vārds uzvārds/\nnosaukums"] = df["Vārds uzvārds/\nnosaukums"].apply(clean_company_name)
                                 existing_columns = [col for col in required_columns if col in df.columns]
                                 missing_columns = [col for col in required_columns if col not in df.columns]
                                 if missing_columns:
@@ -849,39 +786,21 @@ def process_pdf_app():
                 st.sidebar.info("Nav adresātu ar '(miris)' informāciju.")
             st.sidebar.markdown("### Grupēta Tabula - Visas Lapas")
             if not grouped_df.empty:
-                # Jauns kods, kas nodrošina oriģinālo formatējumu
-                # Izveido PDF oriģinālo datu kopiju pirms grupēšanas un eksportēšanas
-                original_format_df = df_all.copy()
-                
-                # Eksportējam PDF tabulas oriģinālā formātā bez jebkādām izmaiņām
-                if not original_format_df.empty:
-                    st.sidebar.markdown("### Oriģinālās tabulas dati (precīzi no PDF)")
-                    st.sidebar.dataframe(original_format_df)
-                    original_csv = original_format_df.to_csv(index=False).encode('utf-8')
-                    st.sidebar.markdown(download_link(original_csv, "original_pdf_data.csv", "Lejupielādēt oriģinālo PDF datu CSV failu"), unsafe_allow_html=True)
-                
-                # Turpinām ar standarta apstrādes procesiem
+                # Pārvēršam 'Adreses' tekstu vienā rindā, aizvietojot rindu pārrāvumus ar atstarpi
+                # grouped_df['Adrese'] = grouped_df['Adrese'].str.replace('\n', ' ')
                 st.sidebar.dataframe(grouped_df)
                 grouped_csv = grouped_df.to_csv(index=False).encode('utf-8')
                 st.sidebar.markdown(download_link(grouped_csv, "grupeta_tabula_visas_lapas.csv", "Lejupielādēt grupēto tabulu CSV failā"), unsafe_allow_html=True)
                 
-                # Validējam eksportētos datus
-                differences = validate_data_preservation(
-                    df_all,
-                    grouped_df, 
-                    ["Vārds uzvārds/\nnosaukums", "Adrese"]
-                )
-                
-                if differences:
-                    st.sidebar.warning(f"Atrasta {len(differences)} atšķirība(s) starp oriģinālu un eksportu:")
-                    for diff in differences[:5]:  # Parādam pirmās 5 atšķirības
-                        st.sidebar.info(f"Kolonna: {diff['column']}, Rinda: {diff['row']}\n"
-                                       f"Oriģināls: '{diff['original']}'\n"
-                                       f"Eksports: '{diff['exported']}'")
-                else:
-                    st.sidebar.success("Datu pārbaude veiksmīga: Visi dati saglabāti precīzi kā oriģinālā PDF!")
-                
-                # Izmantojam process_csv_data(), lai sagatavotu pasta sarakstu
+                # Ja PDF apstrādē tika atrastas tabulas, izveidojam CSV ar datiem viens pret vienu
+                if all_tables_df:
+                    raw_pdf_data = pd.concat(all_tables_df, ignore_index=True)
+                    raw_csv = raw_pdf_data.to_csv(index=False).encode('utf-8')
+                    st.sidebar.markdown(
+                        download_link(raw_csv, "raw_dati_no_pdf.csv", "Lejupielādēt CSV ar datiem no PDF (viens pret vienu)"),
+                        unsafe_allow_html=True
+                    )
+                # Izmantojam process_csv_data() funkciju, lai sagatavotu Excel veidnei nākamai apstrādei
                 df_excel = process_csv_data(filtered_df)
                 def remove_line_breaks(text):
                     if isinstance(text, str):
