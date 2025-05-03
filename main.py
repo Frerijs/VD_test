@@ -93,19 +93,17 @@ def extract_second_part(address):
     # Notīrām pasta indeksu un liekas atstarpes
     result = result.strip()
     
-    # Noņemam pasta indeksu formātā "LV-XXXX" vai "LV- XXXX", saglabājot komatu pirms tā
+    # Noņemam pasta indeksu formātā "LV-XXXX" vai "LV- XXXX"
     result = re.sub(r',?\s*LV-\s*\d{4}(?=\s*$|\s*,)', '', result)
     
-    # Ja tekstā nav "nov", noņemam visus komatus
+    # Ja tekstā nav "nov", noņemam visus komatus un aizstājam ar atstarpi
     if 'nov' not in result.lower():
         result = result.replace(',', ' ')
+        # Aizvietojam vairākas atstarpes ar vienu
+        result = ' '.join(result.split())
     else:
         # Ja ir "nov", tad tikai notīrām liekas atstarpes ap komatiem
         result = re.sub(r'\s*,\s*', ', ', result)
-    
-    # Pārliecināmies, ka beigās ir komats
-    if not result.endswith(','):
-        result += ','
     
     return result.strip()
 
