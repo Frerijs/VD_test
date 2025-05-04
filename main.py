@@ -96,14 +96,8 @@ def extract_second_part(address):
     # Noņemam pasta indeksu formātā "LV-XXXX" vai "LV- XXXX"
     result = re.sub(r',?\s*LV-\s*\d{4}(?=\s*$|\s*,)', '', result)
     
-    # Ja tekstā nav "nov", noņemam visus komatus un aizstājam ar atstarpi
-    if 'nov' not in result.lower():
-        result = result.replace(',', ' ')
-        # Aizvietojam vairākas atstarpes ar vienu
-        result = ' '.join(result.split())
-    else:
-        # Ja ir "nov", tad tikai notīrām liekas atstarpes ap komatiem
-        result = re.sub(r'\s*,\s*', ', ', result)
+    # Notīrām liekas atstarpes ap komatiem, bet saglabājam komatus
+    result = re.sub(r'\s*,\s*', ', ', result)
     
     return result.strip()
 
@@ -359,8 +353,10 @@ def restore_address_format(address):
     text = re.sub(r'([A-Za-zāčēģīķļņšž]+)(gatve)', r'\1 \2', text, flags=re.IGNORECASE)
     # Ja aiz mīnus zīmes seko atstarpe, aizvieto to ar rindu pārrāvumu.
     text = re.sub(r'-\s', '-\n', text)
-    # Ja pēc komata nav atstarpes, ievieto to.
+    # Ja pēc komata nav atstarpes, ievieto to, bet saglabā komatu.
     text = re.sub(r',(\S)', r', \1', text)
+    # Notīrām liekas atstarpes ap komatiem, bet saglabājam komatus
+    text = re.sub(r'\s*,\s*', ', ', text)
     return text
 
 def detect_gender_by_name(full_name):
