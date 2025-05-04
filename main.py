@@ -526,6 +526,19 @@ def clean_property_name(name):
     name = name.strip()
     return name
 
+# Jauna funkcija, kas apstrādā adreses no PDF tabulām
+def normalize_pdf_address(address):
+    if not isinstance(address, str):
+        return address
+    # Aizvieto rindu pārrāvumus ar komatu un atstarpi
+    text = re.sub(r'[\n\r]+', ', ', address)
+    # Notīra liekas atstarpes ap komatiem
+    text = re.sub(r'\s*,\s*', ', ', text)
+    # Noņem dubultos komatus
+    text = re.sub(r',,+', ',', text)
+    # Noņem liekas atstarpes sākumā un beigās
+    return text.strip(' ,')
+
 def process_pdf_app():
     st.markdown("<h1 style='text-align: center; color: #AC3356;'>Vēstuļu draugs</h1>", unsafe_allow_html=True)
     # Ielādējam uzņēmumu, vietu, novadu, mērnieku un sagatavotāju sarakstus no datu bāzes
