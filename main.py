@@ -817,8 +817,8 @@ def process_pdf_app():
                 st.sidebar.info("Nav adresātu ar '(miris)' informāciju.")
             st.sidebar.markdown("### Grupēta Tabula - Visas Lapas")
             if not grouped_df.empty:
-                # Pārvēršam 'Adreses' tekstu vienā rindā, aizvietojot rindu pārrāvumus ar atstarpi
-                # grouped_df['Adrese'] = grouped_df['Adrese'].str.replace('\n', ' ')
+                # Saglabājam rindu pārrāvumus kā \n, lai CSV tie nepazūd
+                grouped_df['Adrese'] = grouped_df['Adrese'].apply(lambda x: x.replace('\n', '\\n') if isinstance(x, str) else x)
                 st.sidebar.dataframe(grouped_df)
                 grouped_csv = grouped_df.to_csv(index=False).encode('utf-8')
                 st.sidebar.markdown(download_link(grouped_csv, "grupeta_tabula_visas_lapas.csv", "Lejupielādēt grupēto tabulu CSV failā"), unsafe_allow_html=True)
