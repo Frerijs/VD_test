@@ -136,15 +136,8 @@ def clean_company_name(text):
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
     if "Adrese" in df_csv.columns:
-        # Izmantojam clean_address_for_Adrese2 funkciju priekš Adrese 1
-        df_excel["Adrese 1"] = df_csv["Adrese"].apply(clean_address_for_Adrese2)
-        df_excel["Adrese 2"] = df_csv["Adrese"].apply(extract_second_part)
-        # Apstrādājam pārējos datus
-        df_excel["Pasta indekss"] = df_csv["Adrese"].apply(extract_pasta_indekss)
-        df_excel["Valsts kods (XX)"] = df_excel["Pasta indekss"].apply(extract_valsts_kods_from_pasta_indekss)
-        # Veidojam pilno adresi no kolonnām
-        df_excel["Adrese"] = df_excel["Adrese 1"].fillna('') + ', ' + df_excel["Adrese 2"].fillna('')
-        df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
+        # Nekādas apstrādes, tikai kopējam adresi
+        df_excel["Adrese"] = df_csv["Adrese"]
     if "VardsUzvārdsNosaukums" in df_csv.columns:
         df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
         sia_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("SIA", na=False, case=False)
