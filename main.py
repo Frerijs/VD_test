@@ -96,8 +96,14 @@ def extract_second_part(address):
     # Noņemam pasta indeksu formātā "LV-XXXX" vai "LV- XXXX"
     result = re.sub(r',?\s*LV-\s*\d{4}(?=\s*$|\s*,)', '', result)
     
-    # Notīrām liekas atstarpes ap komatiem, bet saglabājam komatus
-    result = re.sub(r'\s*,\s*', ', ', result)
+    # Ja tekstā nav "nov", noņemam visus komatus un aizstājam ar atstarpi
+    if 'nov' not in result.lower():
+        result = result.replace(',', ' ')
+        # Aizvietojam vairākas atstarpes ar vienu
+        result = ' '.join(result.split())
+    else:
+        # Ja ir "nov", tad tikai notīrām liekas atstarpes ap komatiem
+        result = re.sub(r'\s*,\s*', ', ', result)
     
     return result.strip()
 
@@ -136,22 +142,44 @@ def clean_company_name(text):
 def process_csv_data(df_csv):
     df_excel = create_excel_template()
     if "Adrese" in df_csv.columns:
-        # Nekādas apstrādes, tikai kopējam adresi
-        df_excel["Adrese"] = df_csv["Adrese"]
+        # Izmantojam clean_address_for_Adrese2 funkciju priekš Adrese 1
+        df_excel["Adrese 1"] = df_csv["Adrese"].apply(clean_address_for_Adrese2)
+        df_excel["Adrese 2"] = df_csv["Adrese"].apply(extract_second_part)
+        
+        # Apstrādājam pārējos datus
+        df_excel["Pasta indekss"] = df_csv["Adrese"].apply(extract_pasta_indekss)
+        df_excel["Valsts kods (XX)"] = df_excel["Pasta indekss"].apply(extract_valsts_kods_from_pasta_indekss)
+        
+        # Veidojam pilno adresi no kolonnām
+        df_excel["Adrese"] = df_excel["Adrese 1"].fillna('') + ', ' + df_excel["Adrese 2"].fillna('')
+        df_excel["Adrese"] = df_excel["Adrese"].str.replace(r',\s*,', ',', regex=True).str.strip(', ').replace('', pd.NA)
+
     if "VardsUzvārdsNosaukums" in df_csv.columns:
+        # Vispirms notīrām un formatējam uzņēmumu nosaukumus
         df_csv["VardsUzvārdsNosaukums"] = df_csv["VardsUzvārdsNosaukums"].apply(clean_company_name)
+        
+        # Izveidojam masku katram uzņēmuma veidam
         sia_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("SIA", na=False, case=False)
         sabiedriba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Sabiedrība ar", na=False, case=False)
         valsts_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Valsts", na=False, case=False)
         pasvaldiba_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Pašvaldība", na=False, case=False)
-        as_mask = df_csv["VardsUzvārdsNosaukums"].str.contains(r'\bAS\b', na=False, case=False)
+        as_mask = df_csv["VardsUzvārdsNosaukums"].str.contains(r'\bAS\b', na=False, case=False)  # \b nodrošina, ka "AS" ir atsevišķs vārds
         akciju_sab_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("Akciju sabiedrība", na=False, case=False)
         ministrija_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("ministrija", na=False, case=False)
         parvalde_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("pārvalde", na=False, case=False)
         zemnieku_mask = df_csv["VardsUzvārdsNosaukums"].str.contains("saimniecība", na=False, case=False)
-        company_mask = (sia_mask | sabiedriba_mask | valsts_mask | pasvaldiba_mask | as_mask | akciju_sab_mask | ministrija_mask | parvalde_mask | zemnieku_mask)
+        
+        # Apvienojam visas maskas vienā, lai identificētu uzņēmumus
+        company_mask = (sia_mask | sabiedriba_mask | valsts_mask | pasvaldiba_mask | 
+                       as_mask | akciju_sab_mask | ministrija_mask | parvalde_mask |
+                       zemnieku_mask)
+        
+        # Kopējam vērtības "Vārds uzvārds" kolonnā tikai tām rindām, kur nav uzņēmums
         df_excel.loc[~company_mask, "Vārds uzvārds"] = df_csv.loc[~company_mask, "VardsUzvārdsNosaukums"]
+        
+        # Kopējam vērtības "Uzņēmums" kolonnā tām rindām, kur ir uzņēmums
         df_excel.loc[company_mask, "Uzņēmums"] = df_csv.loc[company_mask, "VardsUzvārdsNosaukums"]
+    
     return df_excel
 
 def to_excel(df):
@@ -331,10 +359,8 @@ def restore_address_format(address):
     text = re.sub(r'([A-Za-zāčēģīķļņšž]+)(gatve)', r'\1 \2', text, flags=re.IGNORECASE)
     # Ja aiz mīnus zīmes seko atstarpe, aizvieto to ar rindu pārrāvumu.
     text = re.sub(r'-\s', '-\n', text)
-    # Ja pēc komata nav atstarpes, ievieto to, bet saglabā komatu.
+    # Ja pēc komata nav atstarpes, ievieto to.
     text = re.sub(r',(\S)', r', \1', text)
-    # Notīrām liekas atstarpes ap komatiem, bet saglabājam komatus
-    text = re.sub(r'\s*,\s*', ', ', text)
     return text
 
 def detect_gender_by_name(full_name):
@@ -731,13 +757,6 @@ def process_pdf_app():
                                 if missing_columns:
                                     show_warning_sidebar_only(f"Lapas {page_num}: Trūkst kolonnas {', '.join(missing_columns)}.")
                                 df = df[existing_columns]
-                                # Apvieno vairākas adreses kolonnas, ja tādas ir
-                                adreses_kolonnas = [col for col in df.columns if 'Adrese' in col]
-                                if len(adreses_kolonnas) > 1:
-                                    df['Adrese'] = df[adreses_kolonnas].astype(str).agg('\n'.join, axis=1)
-                                    df = df.drop(columns=[col for col in adreses_kolonnas if col != 'Adrese'])
-                                elif len(adreses_kolonnas) == 1:
-                                    df['Adrese'] = df[adreses_kolonnas[0]]
                                 if current_kadastra_num:
                                     df['Kadastra Apzīmējums'] = current_kadastra_num
                                 else:
@@ -778,7 +797,7 @@ def process_pdf_app():
                 'Nekustamā īpašuma nosaukums': 'NekustamaIpaIumaNosaukums'
             })
             # Šeit izmantojam restore_address_format(), lai saglabātu sākotnējo adreses formatējumu
-            grouped_df['Adrese'] = grouped_df['Adrese']
+            grouped_df['Adrese'] = grouped_df['Adrese'].apply(restore_address_format)
             required_columns_grouped = ["VardsUzvārdsNosaukums", "Adrese"]
             missing_columns = [col for col in required_columns_grouped if col not in grouped_df.columns]
             if missing_columns:
@@ -817,12 +836,18 @@ def process_pdf_app():
                 st.sidebar.info("Nav adresātu ar '(miris)' informāciju.")
             st.sidebar.markdown("### Grupēta Tabula - Visas Lapas")
             if not grouped_df.empty:
-                # Nekādas apstrādes adreses laukam pirms eksporta!
+                # Pārvēršam 'Adreses' tekstu vienā rindā, aizvietojot rindu pārrāvumus ar atstarpi
+                # grouped_df['Adrese'] = grouped_df['Adrese'].str.replace('\n', ' ')
                 st.sidebar.dataframe(grouped_df)
                 grouped_csv = grouped_df.to_csv(index=False).encode('utf-8')
                 st.sidebar.markdown(download_link(grouped_csv, "grupeta_tabula_visas_lapas.csv", "Lejupielādēt grupēto tabulu CSV failā"), unsafe_allow_html=True)
                 # Izmantojam process_csv_data(), lai sagatavotu pasta sarakstu
                 df_excel = process_csv_data(filtered_df)
+                def remove_line_breaks(text):
+                    if isinstance(text, str):
+                        return text.replace('\n', ' ')
+                    return text
+                df_excel = df_excel.applymap(remove_line_breaks)
                 st.sidebar.success("Dati veiksmīgi apstrādāti un pievienoti Excel veidnei!")
                 st.sidebar.write("### Pasta saraksts")
                 st.sidebar.dataframe(df_excel)
