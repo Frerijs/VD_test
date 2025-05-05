@@ -738,6 +738,13 @@ def process_pdf_app():
                                 if missing_columns:
                                     show_warning_sidebar_only(f"Lapas {page_num}: Trūkst kolonnas {', '.join(missing_columns)}.")
                                 df = df[existing_columns]
+                                # Apvieno vairākas adreses kolonnas, ja tādas ir
+                                adreses_kolonnas = [col for col in df.columns if 'Adrese' in col]
+                                if len(adreses_kolonnas) > 1:
+                                    df['Adrese'] = df[adreses_kolonnas].astype(str).agg('\n'.join, axis=1)
+                                    df = df.drop(columns=[col for col in adreses_kolonnas if col != 'Adrese'])
+                                elif len(adreses_kolonnas) == 1:
+                                    df['Adrese'] = df[adreses_kolonnas[0]]
                                 if current_kadastra_num:
                                     df['Kadastra Apzīmējums'] = current_kadastra_num
                                 else:
