@@ -824,18 +824,12 @@ def process_pdf_app():
                 st.sidebar.info("Nav adresātu ar '(miris)' informāciju.")
             st.sidebar.markdown("### Grupēta Tabula - Visas Lapas")
             if not grouped_df.empty:
-                # Saglabājam rindu pārrāvumus kā \n, lai CSV tie nepazūd
-                grouped_df['Adrese'] = grouped_df['Adrese'].apply(lambda x: x.replace('\n', '\\n') if isinstance(x, str) else x)
+                # Nekādas apstrādes adreses laukam pirms eksporta!
                 st.sidebar.dataframe(grouped_df)
                 grouped_csv = grouped_df.to_csv(index=False).encode('utf-8')
                 st.sidebar.markdown(download_link(grouped_csv, "grupeta_tabula_visas_lapas.csv", "Lejupielādēt grupēto tabulu CSV failā"), unsafe_allow_html=True)
                 # Izmantojam process_csv_data(), lai sagatavotu pasta sarakstu
                 df_excel = process_csv_data(filtered_df)
-                def remove_line_breaks(text):
-                    if isinstance(text, str):
-                        return text.replace('\n', ' ')
-                    return text
-                df_excel = df_excel.applymap(remove_line_breaks)
                 st.sidebar.success("Dati veiksmīgi apstrādāti un pievienoti Excel veidnei!")
                 st.sidebar.write("### Pasta saraksts")
                 st.sidebar.dataframe(df_excel)
