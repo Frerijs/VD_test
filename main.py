@@ -370,22 +370,31 @@ def detect_gender_by_name(full_name):
     if not isinstance(full_name, str):
         return 'M'
     
-    # Sadalām pilno vārdu un ņemam pirmo vārdu
+    # Atdalām vārdu no sertifikāta numura
     first_name = full_name.split()[0] if full_name.split() else ''
     first_name_lower = first_name.lower()
     
-    # Definējam vīriešu vārdus, kas varētu tikt nepareizi identificēti
+    # Definējam specifisku vīriešu vārdu sarakstu
     male_names = {
         'ēvalds', 'valdis', 'gatis', 'kristaps', 'jānis', 'andris', 'juris',
-        'māris', 'kārlis', 'aigars', 'edgars', 'normunds', 'raivis', 'oskars'
+        'māris', 'kārlis', 'aigars', 'edgars', 'normunds', 'raivis', 'oskars', 
+        'gunārs', 'andrejs', 'pēteris', 'arturs', 'artūrs'
     }
     
-    # Ja vārds ir zināmo vīriešu vārdu sarakstā
+    # Definējam specifisku sieviešu vārdu sarakstu
+    female_names = {
+        'linda', 'anna', 'inga', 'sandra', 'ilze', 'inese', 'dace', 'kristīne',
+        'maija', 'liene', 'zane', 'līga'
+    }
+    
+    # Vispirms pārbaudam specifiskos vārdus
     if first_name_lower in male_names:
         return 'M'
+    if first_name_lower in female_names:
+        return 'F'
     
     # Tipiskas sieviešu vārdu galotnes
-    female_endings = ['a', 'e', 'ija']
+    female_endings = ['a', 'e']
     
     # Vīriešu vārdu galotnes
     male_endings = ['s', 'is', 'us']
