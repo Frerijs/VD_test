@@ -452,8 +452,8 @@ def perform_mail_merge(template_path, records, output_dir):
             
             # Pārbaudām sieviešu vārdus
             if any(name in mernieks.lower() for name in [
-                'linda', 'anna', 'inga', 'sandra', 'ilze', 'inese', 
-                'dace', 'kristīne', 'maija', 'liene', 'zane', 'līga'
+                'lelde', 'anita', 'gunita', 'agnese', 'ieva',
+                'sandra', 'kristīne', 'gunda', 'māra'
             ]):
                 is_female = True
             
