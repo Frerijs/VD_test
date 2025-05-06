@@ -416,6 +416,7 @@ def replace_gender_specific_words(doc, is_female):
     """
     Aizvieto dzimumspecifiskos vārdus dokumenta tekstā
     """
+    # Pārbaudam vai tas ir sieviešu dzimtes vārds
     if is_female:
         replacements = {
             'mērnieks': 'mērniece',
@@ -424,6 +425,7 @@ def replace_gender_specific_words(doc, is_female):
             'mērnieku': 'mērnieci'
         }
         
+        # Veicam aizvietošanu tikai tad, ja ir sieviešu dzimte
         for paragraph in doc.paragraphs:
             for old_word, new_word in replacements.items():
                 if old_word in paragraph.text:
@@ -444,45 +446,19 @@ def perform_mail_merge(template_path, records, output_dir):
         try:
             context = record.copy()
             
-            # Pārējais konteksta apstrādes kods...
-            address = record.get('Adrese', '')
-            address = address.replace('\n', ' ')
-            address = re.sub(r',\s*', ',\n', address)
-            address = re.sub(r'(?i)(?<!\s)(iela)', r' iela', address)
-            address = re.sub(r'\s*-\s*', ' - ', address)
-            address = re.sub(r'(?i)(LV)\s*-\s*(\d{4})', r'\1-\2', address)
-            address = re.sub(r'(?i)(k)\s*-\s*', r'\1-', address)
-            context['Adrese'] = address
+            # Pārbaudām dzimumu no mērnieka vārda
+            is_female = detect_gender_by_name(record.get('Mērnieks_Vārds_Uzvārds', ''))
             
-            if 'VardsUzvārdsNosaukums' in context:
-                context['VardsUzvārdsNosaukums'] = context['VardsUzvārdsNosaukums'].replace('\n', ' ')
-            else:
-                context['VardsUzvārdsNosaukums'] = ''
-
+            # Renderējam veidni ar kontekstu
             template.render(context)
             output_path = os.path.join(output_dir, f"merged_document_{idx+1}.docx")
             template.save(output_path)
             
-            # Pēc template renderēšanas pārbaudām dzimumu un veicam aizvietošanu
-            doc = Document(output_path)
-            is_female = detect_gender_by_name(record.get('Mērnieks_Vārds_Uzvārds', ''))
+            # Veicam dzimuma specifisko vārdu aizvietošanu tikai ja ir sieviešu dzimte
             if is_female:
+                doc = Document(output_path)
                 replace_gender_specific_words(doc, is_female)
-            
-            # Saglabājam dokumentu ar veiktajām izmaiņām
-            doc.save(output_path)
-            
-            # Iestatām dokumenta skatu
-            doc = Document(output_path)
-            settings = doc.settings
-            view = settings.element.find(qn('w:view'))
-            if view is not None:
-                view.set(qn('w:val'), 'print')
-            else:
-                view = OxmlElement('w:view')
-                view.set(qn('w:val'), 'print')
-                settings.element.append(view)
-            doc.save(output_path)
+                doc.save(output_path)
             
             output_paths.append(output_path)
         except Exception as e:
