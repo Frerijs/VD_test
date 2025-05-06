@@ -446,24 +446,33 @@ def perform_mail_merge(template_path, records, output_dir):
         try:
             context = record.copy()
             
-            # Pārbaudām dzimumu no mērnieka vārda
-            is_female = detect_gender_by_name(record.get('Mērnieks_Vārds_Uzvārds', ''))
+            # Pārbaudām dzimumu no pilna teksta (vārds + sertifikāta nr)
+            mernieks = record.get('Mērnieks_Vārds_Uzvārds', '')
+            is_female = False
             
-            # Renderējam veidni ar kontekstu
+            # Pārbaudām sieviešu vārdus
+            if any(name in mernieks.lower() for name in [
+                'linda', 'anna', 'inga', 'sandra', 'ilze', 'inese', 
+                'dace', 'kristīne', 'maija', 'liene', 'zane', 'līga'
+            ]):
+                is_female = True
+            
+            # Renderējam veidni ar kontekstu 
             template.render(context)
             output_path = os.path.join(output_dir, f"merged_document_{idx+1}.docx")
             template.save(output_path)
             
-            # Veicam dzimuma specifisko vārdu aizvietošanu tikai ja ir sieviešu dzimte
+            # Aizvietojam vārdus tikai ja ir sieviete
             if is_female:
                 doc = Document(output_path)
-                replace_gender_specific_words(doc, is_female)
+                replace_gender_specific_words(doc, True)
                 doc.save(output_path)
-            
+                
             output_paths.append(output_path)
         except Exception as e:
             show_error(f"Kļūda renderējot ierakstu {idx+1}: {e}")
             continue
+            
     return output_paths
 
 def merge_word_documents(file_paths, merged_output_path):
