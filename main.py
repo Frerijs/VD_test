@@ -365,24 +365,42 @@ def restore_address_format(address):
 
 def detect_gender_by_name(full_name):
     """
-    Nosaka dzimumu pēc vārda, meklējot sieviešu vārdu galotnes
+    Nosaka dzimumu pēc vārda, ņemot vērā specifiskus gadījumus un vārdu galotnes
     """
     if not isinstance(full_name, str):
         return 'M'
     
+    # Sadalām pilno vārdu un ņemam pirmo vārdu
     first_name = full_name.split()[0] if full_name.split() else ''
-    female_endings = ['a', 'e', 'ija', 'īte']
-    male_exceptions = ['janka', 'juska', 'male']
-    
     first_name_lower = first_name.lower()
     
-    if first_name_lower in male_exceptions:
+    # Definējam vīriešu vārdus, kas varētu tikt nepareizi identificēti
+    male_names = {
+        'ēvalds', 'valdis', 'gatis', 'kristaps', 'jānis', 'andris', 'juris',
+        'māris', 'kārlis', 'aigars', 'edgars', 'normunds', 'raivis', 'oskars'
+    }
+    
+    # Ja vārds ir zināmo vīriešu vārdu sarakstā
+    if first_name_lower in male_names:
         return 'M'
     
+    # Tipiskas sieviešu vārdu galotnes
+    female_endings = ['a', 'e', 'ija']
+    
+    # Vīriešu vārdu galotnes
+    male_endings = ['s', 'is', 'us']
+    
+    # Vispirms pārbaudām vīriešu galotnes
+    for ending in male_endings:
+        if first_name_lower.endswith(ending):
+            return 'M'
+    
+    # Tad pārbaudām sieviešu galotnes
     for ending in female_endings:
         if first_name_lower.endswith(ending):
             return 'F'
     
+    # Ja neviens no nosacījumiem neatbilst, pieņemam ka tas ir vīrietis
     return 'M'
 
 def replace_gender_specific_words(doc, is_female):
