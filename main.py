@@ -445,6 +445,28 @@ def perform_mail_merge(template_path, records, output_dir):
     for idx, record in enumerate(records):
         try:
             context = record.copy()
+            # Apstrādājam 'Adrese' lauku:
+            address = record.get('Adrese', '')
+            # 1. Noņemam esošos rindu pārrāvumus, aizvietojot tos ar atstarpi
+            address = address.replace('\n', ' ')
+            # 2. Ievietojam rindu pārrāvumu pēc katra komata (ar jebkuru atstarpju virkni pēc komata)
+            address = re.sub(r',\s*', ',\n', address)
+            # 3. Nodrošinām, ka vienmēr pirms vārda "iela" (neatkarīgi no lielajiem/mazajiem burtiem) ir atstarpe
+            address = re.sub(r'(?i)(?<!\s)(iela)', r' iela', address)
+            # 4. Nodrošinām, ka pirms un pēc "-" visur ir atstarpe
+            address = re.sub(r'\s*-\s*', ' - ', address)
+            # 5. Atjaunojam "LV" formātu: gadījumos, kad pēc "LV" seko "-" un četri cipari, novēršam atstarpes
+            address = re.sub(r'(?i)(LV)\s*-\s*(\d{4})', r'\1-\2', address)
+            context['Adrese'] = address
+            # 6. Nodrošinām, ka starp burta "k" un simbola "-" vienmēr nav atstarpe
+            address = re.sub(r'(?i)(k)\s*-\s*', r'\1-', address)
+            context['Adrese'] = address
+            
+            # Apstrādājam 'VardsUzvārdsNosaukums' lauku, lai tas tiktu attēlots vienā rindā
+            if 'VardsUzvārdsNosaukums' in context:
+                context['VardsUzvārdsNosaukums'] = context['VardsUzvārdsNosaukums'].replace('\n', ' ')
+            else:
+                context['VardsUzvārdsNosaukums'] = ''
             
             # Pārbaudām dzimumu no pilna teksta (vārds + sertifikāta nr)
             mernieks = record.get('Mērnieks_Vārds_Uzvārds', '')
